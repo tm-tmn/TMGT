@@ -1004,7 +1004,7 @@ function showLogin(msg){
 }
 const CFG = window.GM_CONFIG || {};
 // ข้อความ error จากลิงก์ยืนยันอีเมล (เช่น หมดอายุ / ถูกใช้ไปแล้ว)
-const authErr = (() => {
+let authErr = (() => {
   const hp = new URLSearchParams(location.hash.slice(1));
   if (!hp.get("error")) return "";
   const code = hp.get("error_code");
@@ -1026,7 +1026,7 @@ else {
       if(location.pathname.startsWith("/auth/callback")) history.replaceState(null,"","/");
       if(session){ ls.set("gm.localonly",""); await Store.initSupabase(session); render(); }
       else if(ls.get("gm.localonly")==="1"){ Store.initLocal(); render(); }
-      else { Store.ready=false; if(Store.chan) sb.removeChannel(Store.chan); Store.items.clear(); Store.mode="memory"; showLogin(authErr); }
+      else { Store.ready=false; if(Store.chan) sb.removeChannel(Store.chan); Store.items.clear(); Store.mode="memory"; showLogin(authErr); authErr=""; }
     },0);
   });
 }
