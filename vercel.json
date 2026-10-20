@@ -14,7 +14,7 @@
   "rewrites": [
     {
       "source": "/auth/callback",
-      "destination": "/index.html"
+      "destination": "/"
     }
   ]
 }
