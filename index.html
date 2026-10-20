@@ -471,7 +471,7 @@ function statHTML(){
 }
 
 /* ---------- UI state ---------- */
-const S = { tab:"songs", songId:null, view:"sheet", q:"", plId:null, gearOpen:null, sel:{}, fs:+(ls.get("gm.fs")||17), armed:null };
+const S = { tab:"songs", songId:null, view:"sheet", q:"", plId:null, gearOpen:null, sel:{}, fs:+(ls.get("gm.fs")||17), armed:null, conv:{open:false,text:""} };
 try{ const t=ls.get("gm.tab"); if(t) S.tab=t; }catch(e){}
 
 /* ---------- music ---------- */
@@ -553,6 +553,52 @@ function diagramSVG(name){
     else g+=`<circle class="dotc" cx="${x(i)}" cy="${y(v)}" r="3.4"/>`;
   });
   return `<div class="dg"><b>${esc(name)}</b>${g}</svg></div>`;
+}
+
+/* ---------- chord sheet converter (chords above lyrics -> [chord]lyric) ---------- */
+const CHORD_RE=/^[A-G][#b]?(?:maj|min|dim|aug|sus|add|m|M|\+|°)?(?:[0-9]+|(?:sus|add|maj|b|#|\+|-)[0-9]+)*(?:\([^)]*\))?(?:\/[A-G][#b]?)?$/;
+const SKIP_RE=/^(?:x\d+|\|+|\/+|-+|%|\.+)$/i;
+const SECTION_RE=/^\[?\s*((?:intro|verse|chorus|pre[- ]?chorus|bridge|solo|outro|interlude|ending|instrumental|hook|refrain|tag|coda)[^\]\n]*|ท่อน[^\]\n]*|อินโทร[^\]\n]*|เมนเพลง[^\]\n]*)\]?\s*:?$/i;
+const ZW=/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/;
+const HAS_APP_CHORD=/\[[A-G][^\]]*\]/;
+function chordTokens(line){ const out=[]; const re=/[^\s|]+/g; let m; while((m=re.exec(line))) out.push({t:m[0],c:m.index}); return out; }
+function isChordLine(line){
+  const toks=chordTokens(line); if(!toks.length) return false; let n=0;
+  for(const k of toks){ if(CHORD_RE.test(k.t)) n++; else if(!SKIP_RE.test(k.t)) return false; }
+  return n>0;
+}
+function mergeLine(chords, lyric){
+  const col=[]; let c=0;
+  for(let i=0;i<lyric.length;i++){ col.push(c); if(!ZW.test(lyric[i])) c++; }
+  const pos=chords.map(k=>{
+    let idx=col.findIndex(x=>x>=k.c); if(idx<0) idx=lyric.length;
+    while(idx<lyric.length && ZW.test(lyric[idx])) idx++;
+    return {idx,t:k.t};
+  });
+  let res=lyric;
+  for(let i=pos.length-1;i>=0;i--) res=res.slice(0,pos[i].idx)+"["+pos[i].t+"]"+res.slice(pos[i].idx);
+  return res;
+}
+function convertChordSheet(text){
+  const L=String(text||"").replace(/\r/g,"").replace(/\t/g,"    ").split("\n"); const out=[];
+  for(let i=0;i<L.length;i++){
+    const line=L[i].replace(/\s+$/,"");
+    if(!line.trim()){ out.push(""); continue; }
+    if(HAS_APP_CHORD.test(line)){ out.push(line); continue; }
+    const chordy=isChordLine(line);
+    const sec=!chordy && SECTION_RE.exec(line.trim());
+    if(sec){ out.push("# "+sec[1].trim().replace(/:$/,"")); continue; }
+    if(chordy){
+      const chords=chordTokens(line).filter(k=>CHORD_RE.test(k.t));
+      const next=L[i+1];
+      if(next!==undefined && next.trim() && !isChordLine(next) && !SECTION_RE.test(next.trim()) && !HAS_APP_CHORD.test(next)){
+        out.push(mergeLine(chords, next.replace(/\s+$/,""))); i++;
+      } else out.push(chords.map(k=>"["+k.t+"]").join(" "));
+      continue;
+    }
+    out.push(line);
+  }
+  return out.join("\n").replace(/\n{3,}/g,"\n\n").trim();
 }
 
 /* ---------- knob ---------- */
@@ -663,6 +709,14 @@ function editView(s){
     <datalist id="tunings">${TUNINGS.map(t=>`<option value="${esc(t)}">`).join("")}</datalist>
     <label class="f">เนื้อเพลงและคอร์ด<textarea id="e-body" data-f="body" rows="16" style="font-family:var(--f-mono);font-size:14px;line-height:1.6">${esc(s.body)}</textarea></label>
     <p class="hint" style="margin:-8px 0 0">ใส่คอร์ดในวงเล็บเหลี่ยมไว้หน้าพยางค์ที่เปลี่ยน เช่น <code>[Am]ฝนตก[F]ที่หน้าต่าง</code> · ขึ้นบรรทัดด้วย <code># Chorus</code> เพื่อแบ่งท่อน</p>
+    <details id="conv-box" class="notice" ${S.conv.open?"open":""} style="padding:0">
+      <summary style="cursor:pointer;padding:10px 14px;font-weight:500;color:var(--ink)">วางเนื้อเพลงที่มีคอร์ดอยู่บรรทัดบน แล้วแปลงอัตโนมัติ</summary>
+      <div style="display:grid;gap:10px;padding:0 14px 14px">
+        <p class="hint" style="margin:0">คัดลอกจากเว็บคอร์ดมาวางได้เลย เช่น คอร์ดอยู่บรรทัดบน เนื้อเพลงอยู่บรรทัดล่าง ระบบจะย้ายคอร์ดเข้าไปตรงตำแหน่งในเนื้อเพลงให้ (ใช้ฟอนต์ที่ตัวอักษรเท่ากันบนเว็บต้นทางจะแม่นกว่า) ตรวจผลด้านล่างก่อนกดใช้</p>
+        <label class="f">วางที่นี่<textarea id="conv-in" rows="7" style="font-family:var(--f-mono);font-size:13px;white-space:pre" placeholder="   Am        F&#10;ฝนตกที่หน้าต่าง&#10;   C        G&#10;ฉันนั่งฟังเสียงกีตาร์">${esc(S.conv.text)}</textarea></label>
+        <label class="f">ผลลัพธ์<textarea id="conv-out" rows="7" readonly style="font-family:var(--f-mono);font-size:13px;white-space:pre">${esc(convertChordSheet(S.conv.text))}</textarea></label>
+        <div class="row"><button class="btn pri" data-act="convreplace">ใช้แทนเนื้อเพลงเดิม</button><button class="btn" data-act="convappend">ต่อท้ายเนื้อเพลงเดิม</button></div>
+      </div></details>
     <label class="f">โน้ตช่วยจำ (เทคนิคการเล่น, ท่อนที่ชอบลืม)<textarea id="e-notes" data-f="notes" rows="3">${esc(s.notes)}</textarea></label>
     <div class="row sp"><span class="hint">บันทึกอัตโนมัติทุกครั้งที่พิมพ์</span>
       <div class="row"><button class="btn" data-act="dupsong">ทำสำเนาเพลง</button><button class="btn danger ${S.armed==="song"?"arm":""}" data-act="delsong">${S.armed==="song"?"กดอีกครั้งเพื่อลบ":"ลบเพลง"}</button></div></div>
@@ -858,6 +912,10 @@ app.addEventListener("click", async e=>{
     case "tab": S.tab=v; S.armed=null; ls.set("gm.tab",v); break;
     case "song": S.songId=v; S.armed=null; window.scrollTo(0,0); break;
     case "back": if(S.tab==="songs") S.songId=null; else S.plId=null; break;
+    case "convreplace": case "convappend": {
+      const out=convertChordSheet(S.conv.text); if(!out){ toast("วางเนื้อเพลงก่อน"); return; }
+      s.body = a==="convreplace" ? out : ((s.body||"").trimEnd()+"\n\n"+out); Store.put(s);
+      S.conv.text=""; S.conv.open=false; toast(a==="convreplace"?"แทนที่เนื้อเพลงแล้ว":"ต่อท้ายแล้ว"); break; }
     case "addsong": { const n=newSong(); S.songId=n.id; S.view="edit"; S.q=""; break; }
     case "view": S.view=v; S.armed=null; break;
     case "stage": if(s) openStage([s.id]); return;
@@ -895,6 +953,7 @@ app.addEventListener("click", async e=>{
   }
   render();
 });
+app.addEventListener("toggle", e=>{ if(e.target.id==="conv-box") S.conv.open=e.target.open; }, true);
 app.addEventListener("change", e=>{
   const t=e.target, s=curSong();
   if(t.dataset.act==="guitar"){ s.guitarId=t.value; s.pickup=0; Store.put(s); render(); return; }
@@ -902,6 +961,7 @@ app.addEventListener("change", e=>{
 });
 app.addEventListener("input", e=>{
   const t=e.target;
+  if(t.id==="conv-in"){ S.conv.text=t.value; $("#conv-out").value=convertChordSheet(t.value); return; }
   if(t.id==="q"){ S.q=t.value; $("#songlist").innerHTML=songListHTML(); return; }
   const s=curSong();
   if(t.dataset.f && S.tab==="songs" && s){
