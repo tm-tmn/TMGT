@@ -1,0 +1,1025 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1A1E1C">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M21 3l8 8-3 1-6 6c1.6 2.8 1 6.6-1.8 9.4-3.4 3.4-8.4 3.8-11.2 1S4.6 21 8 17.6C10.8 14.8 14.6 14.2 17.4 15.8l6-6z' fill='none' stroke='%23D2541C' stroke-width='2.4'/%3E%3C/svg%3E">
+<title>Guitar Man</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: sticky header with three tabs; library list + detail; rig shown as a dark pedalboard strip with signal flow left→right */
+:root{
+  --bg:#ECEFEB; --panel:#FAFBF9; --ink:#1A1E1C; --muted:#5D6661; --line:#D2D8D3; --soft:#E2E7E2;
+  --accent:#D2541C; --accent-ink:#A9420F; --on:#E8402F; --ok:#2E8A57;
+  --board:#262A28; --board-2:#303532; --board-ink:#E9ECE9; --board-muted:#A4ADA8; --board-line:#3F4642;
+  --stage:#0E100F; --stage-ink:#F1F3F1; --stage-chord:#FFA066; --stage-muted:#8E9792;
+  --f-display:"Chakra Petch","IBM Plex Sans Thai",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121514; --panel:#1A1E1C; --ink:#E7EBE8; --muted:#97A19B; --line:#2C3330; --soft:#232826;
+  --accent:#FF8448; --accent-ink:#FF9A66; --on:#FF5A44; --ok:#4CC27E;
+  --board:#0C0E0D; --board-2:#181C1A; --board-ink:#E9ECE9; --board-muted:#9AA39E; --board-line:#2C3330;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121514; --panel:#1A1E1C; --ink:#E7EBE8; --muted:#97A19B; --line:#2C3330; --soft:#232826;
+  --accent:#FF8448; --accent-ink:#FF9A66; --on:#FF5A44; --ok:#4CC27E;
+  --board:#0C0E0D; --board-2:#181C1A; --board-ink:#E9ECE9; --board-muted:#9AA39E; --board-line:#2C3330;
+  color-scheme:dark}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--f-body);font-size:15px;line-height:1.55}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--panel)}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* header */
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--panel);border-bottom:1px solid var(--line)}
+.hbar{display:flex;align-items:center;gap:18px;padding-block:10px;flex-wrap:wrap;max-width:1320px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--f-display);font-weight:700;font-size:20px;letter-spacing:.02em}
+.brand svg{width:26px;height:26px}
+.tabs{display:flex;gap:4px;background:var(--soft);padding:3px;border-radius:9px}
+.tabs button{border:0;background:none;padding:6px 14px;border-radius:7px;font-weight:500;color:var(--muted)}
+.tabs button[aria-current="true"]{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.hstat{margin-left:auto;display:flex;gap:10px;align-items:center;font-size:12.5px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);display:inline-block}
+.dot.local{background:var(--accent)}
+
+main{max-width:1320px;margin:0 auto;padding-block:18px 60px}
+.split{display:grid;grid-template-columns:300px minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:860px){.split{grid-template-columns:minmax(0,1fr)} .split.has-sel .side{display:none} .split:not(.has-sel) .detail{display:none}}
+@media (min-width:861px){.back{display:none!important}}
+
+/* sidebar list */
+.side{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;position:sticky;top:76px}
+.side-h{display:flex;gap:8px;padding:12px;border-bottom:1px solid var(--line)}
+.side-h input{flex:1;min-width:0}
+.list{max-height:calc(100vh - 190px);overflow:auto}
+.item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:10px 14px;border:0;border-bottom:1px solid var(--line);background:none;width:100%;text-align:left}
+.item:hover{background:var(--soft)}
+.item[aria-current="true"]{background:var(--soft);box-shadow:inset 3px 0 0 var(--accent)}
+.item .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .s{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .k{grid-row:1/3;grid-column:2;align-self:center;font-family:var(--f-mono);font-size:12px;color:var(--accent-ink)}
+.leds{display:flex;gap:3px;margin-top:3px}
+.leds i{width:6px;height:6px;border-radius:50%;background:var(--line)}
+.leds i.on{background:var(--on)}
+.empty{padding:28px 18px;color:var(--muted);text-align:center;font-size:14px}
+
+/* controls */
+.btn{border:1px solid var(--line);background:var(--panel);padding:7px 13px;border-radius:8px;font-weight:500;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.pri:hover{filter:brightness(1.06)}
+.btn.sm{padding:4px 9px;font-size:13px}
+.btn.ghost{border-color:transparent;background:none}
+.btn.danger{color:var(--on)}
+.btn.danger.arm{background:var(--on);color:#fff;border-color:var(--on)}
+input[type=text],input[type=number],input[type=search],select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0}
+textarea{width:100%;resize:vertical}
+label.f{display:grid;gap:4px;font-size:12.5px;color:var(--muted);font-weight:500}
+label.f > input,label.f > select,label.f > textarea{color:var(--ink);font-size:15px}
+.grid-f{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.seg{display:inline-flex;flex-wrap:wrap;gap:3px;background:var(--soft);padding:3px;border-radius:9px}
+.seg button{border:0;background:none;padding:5px 11px;border-radius:7px;font-size:13.5px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+
+/* detail */
+.detail{min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r)}
+.dh{padding:18px 20px 14px;display:grid;gap:10px;border-bottom:1px solid var(--line)}
+.dh h1{font-family:var(--f-display);font-size:28px;line-height:1.15;margin:0;text-wrap:balance;font-weight:700}
+.dh .by{color:var(--muted);margin-top:-6px}
+.meta{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12.5px;border:1px solid var(--line);border-radius:999px;padding:2px 10px;color:var(--muted);font-variant-numeric:tabular-nums}
+.chip b{color:var(--ink);font-weight:600}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row.sp{justify-content:space-between}
+.body{padding:18px 20px 22px}
+.ex{font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-family:var(--f-display);font-weight:600;background:var(--soft);color:var(--muted);border-radius:4px;padding:1px 6px}
+.hint{font-size:13px;color:var(--muted)}
+h2.sec{font-family:var(--f-display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;font-weight:600}
+
+/* sheet */
+.sheet{font-size:var(--fs,17px);line-height:1.3}
+.sheet .ln{display:flex;flex-wrap:wrap;align-items:flex-end;min-height:1.4em;margin-bottom:.35em}
+.sheet .sg{display:inline-flex;flex-direction:column;white-space:pre}
+.sheet .ch{font-family:var(--f-mono);font-weight:600;color:var(--accent-ink);font-size:.86em;padding-right:.5em;min-height:1.25em}
+.sheet .ln.nochord .ch{display:none}
+.sheet .ln.chordonly .ly{display:none}
+.sheet .lbl{font-family:var(--f-display);font-weight:600;font-size:.72em;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:1.1em 0 .4em;border-top:1px solid var(--line);padding-top:.5em}
+.sheet .lbl:first-child{margin-top:0;border-top:0;padding-top:0}
+.sheet .gap{height:.7em}
+.diags{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.dg{display:grid;justify-items:center;gap:2px;width:72px}
+.dg b{font-family:var(--f-mono);font-size:13px}
+.dg svg{width:66px;height:80px}
+.dg .no{font-size:11px;color:var(--muted);height:80px;display:grid;place-items:center;text-align:center}
+.dgs line,.dgs rect.nut{stroke:var(--ink)}
+.dgs .dotc{fill:var(--ink)}
+.dgs text{fill:var(--muted);font-family:var(--f-mono);font-size:9px}
+.trans{display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}
+
+/* board */
+.board{background:var(--board);color:var(--board-ink);border-radius:var(--r);padding:16px;
+  background-image:radial-gradient(rgba(255,255,255,.035) 1px,transparent 1.4px);background-size:5px 5px}
+.flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px}
+.node{background:var(--board-2);border:1px solid var(--board-line);border-radius:9px;padding:12px;min-width:0}
+.arrow{align-self:center;color:var(--board-muted);font-family:var(--f-mono)}
+.node h3{margin:0 0 8px;font-family:var(--f-display);font-size:14px;letter-spacing:.06em;font-weight:600}
+.node .sub{font-size:12px;color:var(--board-muted)}
+.board select,.board input[type=text],.board input[type=number],.board textarea{background:#00000040;border-color:var(--board-line);color:var(--board-ink)}
+.board .seg{background:#00000040}
+.board .seg button{color:var(--board-muted)}
+.board .seg button[aria-pressed="true"]{background:var(--board-ink);color:#111}
+.board .btn{background:transparent;border-color:var(--board-line);color:var(--board-ink)}
+.board .btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.board .hint{color:var(--board-muted)}
+.guitar-node{flex:1 1 280px}
+.gstrip{height:6px;border-radius:3px;margin:-4px 0 10px}
+
+/* knobs */
+.knobs{display:flex;flex-wrap:wrap;gap:10px 6px}
+.knob{display:grid;justify-items:center;gap:0;width:64px;touch-action:none;user-select:none;cursor:ns-resize;border-radius:8px;padding:2px 0}
+.knob svg{width:46px;height:46px}
+.knob .kv{font-family:var(--f-mono);font-size:12px;font-variant-numeric:tabular-nums}
+.knob .kl{font-size:11px;color:var(--board-muted);text-align:center;line-height:1.15;max-width:64px;overflow-wrap:anywhere}
+.knob .trk{stroke:#ffffff26;fill:none;stroke-width:3.2}
+.knob .val{stroke:var(--accent);fill:none;stroke-width:3.2;stroke-linecap:round}
+.knob .cap{fill:#1b1d1c;stroke:#555c58}
+.knob .ptr{stroke:#f1f1f1;stroke-width:2.4;stroke-linecap:round}
+.knob.drag .kv{color:var(--accent)}
+
+/* GT-1 unit */
+.unit{flex:1 1 100%;background:#141615;border-color:#3a403c;position:relative}
+.unit-h{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+.lcd{font-family:var(--f-mono);background:#1d2a20;color:#9cf2b0;border:1px solid #2f4a36;border-radius:6px;padding:4px 10px;display:flex;gap:8px;align-items:center;font-size:14px}
+.lcd input{background:transparent!important;border:0!important;color:#9cf2b0!important;font-family:var(--f-mono);padding:0!important;width:4.5ch}
+.lcd input.nm{width:16ch}
+.chain{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:12px}
+.blk{flex:0 0 auto;display:grid;justify-items:center;gap:3px;background:#202422;border:1px solid #3a403c;border-radius:7px;padding:7px 9px 6px;min-width:70px;color:var(--board-ink)}
+.blk[aria-current="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.blk .bn{font-family:var(--f-display);font-weight:600;font-size:12px;letter-spacing:.05em}
+.blk .bt{font-size:10px;color:var(--board-muted);max-width:86px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.led{width:9px;height:9px;border-radius:50%;background:#3b2522;border:0;padding:0}
+.led.on{background:var(--on);box-shadow:0 0 8px var(--on)}
+.bedit{display:grid;gap:12px;background:#1a1d1b;border:1px solid #2f3532;border-radius:8px;padding:12px}
+.unit .hint{font-size:12.5px}
+.tsl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;border-top:1px dashed #3a403c;margin-top:12px;padding-top:10px}
+
+/* stomp pedal */
+.pedal{flex:0 0 156px;border-radius:12px;padding:10px 10px 12px;display:grid;gap:8px;justify-items:center;box-shadow:inset 0 -6px 0 rgba(0,0,0,.18),0 3px 0 rgba(0,0,0,.35);position:relative}
+.pedal.off{filter:saturate(.45) brightness(.75)}
+.pedal .pn{font-family:var(--f-display);font-weight:700;font-size:15px;text-transform:uppercase;letter-spacing:.04em;text-align:center;line-height:1.1}
+.pedal .pb{font-size:11px;opacity:.8}
+.pedal .knob .kl{color:inherit;opacity:.85}
+.pedal .knob{width:46px}
+.pedal .knob svg{width:38px;height:38px}
+.foot{width:36px;height:36px;border-radius:50%;background:radial-gradient(#d9dcdb,#8b908d);border:2px solid #555;padding:0}
+.pedal .pctl{display:flex;gap:4px}
+.pedal .pctl button{background:#0003;border:0;border-radius:5px;color:inherit;padding:2px 7px;font-size:12px}
+
+.add-unit{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}
+.outnode{flex:0 1 200px}
+
+/* gear page */
+.gear{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:20px;align-items:start}
+.gcard{display:grid;gap:12px;padding:14px;border-top:1px solid var(--line)}
+.gcard:first-of-type{border-top:0}
+.gtitle{display:flex;gap:12px;align-items:center}
+.swatch{width:34px;height:34px;border-radius:8px;flex:0 0 auto;border:1px solid var(--line)}
+.gtitle .t{font-weight:600}
+.gtitle .s{font-size:12.5px;color:var(--muted)}
+
+/* playlist */
+.pl-songs{display:grid;gap:6px;margin:12px 0}
+.pls{display:grid;grid-template-columns:2.2em minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg)}
+.pls .n{font-family:var(--f-mono);color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.pls .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pls .s{font-size:12.5px;color:var(--muted)}
+
+/* stage */
+.stage{position:fixed;inset:0;z-index:50;background:var(--stage);color:var(--stage-ink);display:flex;flex-direction:column;color-scheme:dark}
+.st-top{padding-top:calc(10px + env(safe-area-inset-top,0px));padding-bottom:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-bottom:1px solid #262b28;display:grid;gap:8px}
+.st-title{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline}
+.st-title h2{margin:0;font-family:var(--f-display);font-size:24px;font-weight:700}
+.st-title .m{color:var(--stage-muted);font-size:14px;font-variant-numeric:tabular-nums}
+.beat{width:10px;height:10px;border-radius:50%;background:var(--stage-chord);display:inline-block;animation:beat var(--bp,.7s) steps(1) infinite}
+@keyframes beat{0%{opacity:1}30%{opacity:.15}}
+@media (prefers-reduced-motion:reduce){.beat{animation:none}}
+.st-ctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.st-ctl button{background:#1d211f;border:1px solid #333a36;color:var(--stage-ink);border-radius:8px;padding:5px 11px;font-size:14px}
+.st-ctl button[aria-pressed="true"]{background:var(--stage-chord);color:#111;border-color:var(--stage-chord)}
+.st-ctl .v{font-family:var(--f-mono);font-size:13px;min-width:3ch;text-align:center;color:var(--stage-muted)}
+.tone-strip{display:flex;gap:6px;overflow-x:auto;font-size:12.5px;padding-bottom:2px}
+.tone-strip span{flex:0 0 auto;background:#1a1e1c;border:1px solid #2c322f;border-radius:6px;padding:3px 8px;white-space:nowrap}
+.tone-strip b{color:var(--stage-chord);font-family:var(--f-display);font-weight:600;margin-right:4px}
+.st-body{flex:1;overflow:auto;padding-block:20px 40vh;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.st-body .inner{max-width:900px;margin:0 auto}
+.stage .sheet .ch{color:var(--stage-chord)}
+.stage .sheet .lbl{color:var(--stage-muted);border-color:#262b28}
+.stage .dgs line,.stage .dgs rect.nut{stroke:var(--stage-ink)}
+.stage .dgs .dotc{fill:var(--stage-ink)}
+.stage .dg b{color:var(--stage-ink)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:8px;font-size:14px;z-index:60}
+.loading{padding:60px 16px;text-align:center;color:var(--muted)}
+.notice{background:var(--soft);border-radius:8px;padding:10px 14px;font-size:13.5px;color:var(--muted)}
+</style>
+
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+.login{display:grid;place-items:center;min-height:80vh;padding-block:30px}
+.login-card{width:min(400px,100%);padding:24px}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+</head>
+<body>
+<div id="app"><div class="loading">กำลังเปิดคลังเพลง…</div></div>
+<div id="stage" hidden></div>
+<div id="toast" class="toast" hidden></div>
+<input type="file" id="tslfile" accept=".tsl,.json,application/json" hidden>
+<input type="file" id="importfile" accept=".json,application/json" hidden>
+
+<script type="application/json" id="seed">
+[
+ {"kind":"guitar","id":"g-tele","name":"Paul Ray Telecaster","brand":"Paul Ray","pickups":"SS","tuning":"Standard (E A D G B E)","color":"#C9A35A","knobs":["Volume","Tone"],"notes":""},
+ {"kind":"guitar","id":"g-rory","name":"Fender Custom Shop Rory Gallagher Stratocaster","brand":"Fender Custom Shop","pickups":"SSS","tuning":"Standard (E A D G B E)","color":"#8E5A32","knobs":["Volume","Tone (Neck)","Tone (Middle)"],"notes":""},
+ {"kind":"device","id":"d-gt1","name":"Boss GT-1","brand":"BOSS","form":"multi","color":"#1A1C1B","notes":"ต่อคอมผ่าน USB ใช้ BOSS Tone Studio แก้ไข/สำรอง patch"}
+]
+</script>
+<script type="application/json" id="examples">
+[
+ {"kind":"song","id":"s-ex1","example":true,"title":"ทางกลับบ้าน","artist":"เพลงตัวอย่าง (แต่งขึ้นเพื่อทดลองใช้)","key":"G","capo":0,"bpm":84,"tuning":"Standard (E A D G B E)","transpose":0,
+  "body":"# Intro\n[G] [D/F#] [Em] [C]\n\n# Verse 1\n[G]ไฟถนนเรียงยาวไป[D/F#]จนสุดทาง\n[Em]ฝนเพิ่งจางเหลือเพียงกลิ่น[C]ดินชื้นเย็น\n[G]กีตาร์ตัวเก่าวาง[D/F#]ข้างกายเหมือนเคย\n[Em]คอร์ดที่เคยลืมเลือน[C]ค่อยๆ ชัดขึ้นมา [D]\n\n# Chorus\n[C]ทางกลับบ้าน[D]ไม่เคยไกล\n[G]ถ้าหัวใจ[Em]ยังจำเสียงเพลง\n[C]ร้องเบาๆ[D]ให้ตัวเอง\n[G]ฟังจนคืน[D]นี้ผ่านไป [G]",
+  "notes":"ดีดเบาๆ ช่วง verse เพิ่มแรงตอน chorus",
+  "guitarId":"g-tele","pickup":1,"gknobs":{"Volume":8,"Tone":7},"output":"USB → คอม",
+  "rig":[{"uid":"u1","deviceId":"d-gt1","on":true,"slot":"U01","patchName":"CLEAN SHIMMER","patchLevel":100,"note":"",
+    "blocks":[
+     {"key":"fx1","label":"FX1","on":true,"type":"COMPRESSOR","params":[{"n":"Sustain","v":45,"min":0,"max":100,"u":""},{"n":"Attack","v":55,"min":0,"max":100,"u":""},{"n":"Level","v":50,"min":0,"max":100,"u":""}]},
+     {"key":"od","label":"OD/DS","on":false,"type":"BLUES OD","params":[{"n":"Drive","v":30,"min":0,"max":120,"u":""},{"n":"Tone","v":50,"min":0,"max":100,"u":""},{"n":"Bottom","v":50,"min":0,"max":100,"u":""},{"n":"Level","v":50,"min":0,"max":100,"u":""}]},
+     {"key":"pre","label":"PREAMP","on":true,"type":"CLEAN TWIN","params":[{"n":"Gain","v":25,"min":0,"max":120,"u":""},{"n":"Bass","v":45,"min":0,"max":100,"u":""},{"n":"Middle","v":55,"min":0,"max":100,"u":""},{"n":"Treble","v":60,"min":0,"max":100,"u":""},{"n":"Presence","v":40,"min":0,"max":100,"u":""},{"n":"Level","v":50,"min":0,"max":100,"u":""}]},
+     {"key":"ns","label":"NS","on":true,"type":"","params":[{"n":"Threshold","v":20,"min":0,"max":100,"u":""},{"n":"Release","v":30,"min":0,"max":100,"u":""}]},
+     {"key":"eq","label":"EQ","on":false,"type":"","params":[{"n":"Low","v":0,"min":-20,"max":20,"u":"dB"},{"n":"Mid","v":0,"min":-20,"max":20,"u":"dB"},{"n":"High","v":0,"min":-20,"max":20,"u":"dB"},{"n":"Level","v":0,"min":-20,"max":20,"u":"dB"}]},
+     {"key":"fx2","label":"FX2","on":true,"type":"CHORUS","params":[{"n":"Rate","v":30,"min":0,"max":100,"u":""},{"n":"Depth","v":45,"min":0,"max":100,"u":""},{"n":"Level","v":50,"min":0,"max":100,"u":""}]},
+     {"key":"dly","label":"DELAY","on":true,"type":"DIGITAL","params":[{"n":"Time","v":420,"min":1,"max":2000,"u":"ms"},{"n":"Feedback","v":28,"min":0,"max":100,"u":""},{"n":"E.Level","v":30,"min":0,"max":120,"u":""}]},
+     {"key":"rev","label":"REVERB","on":true,"type":"HALL","params":[{"n":"Time","v":30,"min":1,"max":100,"u":"×0.1s"},{"n":"Pre Delay","v":20,"min":0,"max":500,"u":"ms"},{"n":"E.Level","v":30,"min":0,"max":100,"u":""}]},
+     {"key":"pfx","label":"PEDAL FX","on":false,"type":"WAH","params":[{"n":"Pedal","v":50,"min":0,"max":100,"u":""},{"n":"Level","v":50,"min":0,"max":100,"u":""}]},
+     {"key":"fv","label":"FV","on":true,"type":"","params":[{"n":"Volume","v":100,"min":0,"max":100,"u":""}]}
+    ]}]
+ },
+ {"kind":"song","id":"s-ex2","example":true,"title":"Morning Shuffle in A","artist":"เพลงตัวอย่าง (บลูส์ 12 ห้อง)","key":"A","capo":0,"bpm":112,"tuning":"Standard (E A D G B E)","transpose":0,
+  "body":"# 12-bar shuffle\n| [A7] / / / | [D7] / / / | [A7] / / / | [A7] / / / |\n| [D7] / / / | [D7] / / / | [A7] / / / | [A7] / / / |\n| [E7] / / / | [D7] / / / | [A7] / / / | [E7] / / / |\n\n# Ending\n[A7] [Bb7] [A7]",
+  "notes":"Pick แรงๆ ลด Volume ที่กีตาร์ลงเหลือ 6 เพื่อให้คลีนขึ้น",
+  "guitarId":"g-rory","pickup":0,"gknobs":{"Volume":10,"Tone (Neck)":10,"Tone (Middle)":8},"output":"USB → คอม",
+  "rig":[{"uid":"u2","deviceId":"d-gt1","on":true,"slot":"U02","patchName":"AC BOOST","patchLevel":100,"note":"ใช้ CTL เปิด/ปิด OD ตอนโซโล่",
+    "blocks":[
+     {"key":"fx1","label":"FX1","on":false,"type":"COMPRESSOR","params":[{"n":"Sustain","v":50,"min":0,"max":100,"u":""},{"n":"Attack","v":50,"min":0,"max":100,"u":""},{"n":"Level","v":50,"min":0,"max":100,"u":""}]},
+     {"key":"od","label":"OD/DS","on":true,"type":"TREBLE BOOST","params":[{"n":"Drive","v":60,"min":0,"max":120,"u":""},{"n":"Tone","v":65,"min":0,"max":100,"u":""},{"n":"Bottom","v":40,"min":0,"max":100,"u":""},{"n":"Level","v":60,"min":0,"max":100,"u":""}]},
+     {"key":"pre","label":"PREAMP","on":true,"type":"VO DRIVE","params":[{"n":"Gain","v":55,"min":0,"max":120,"u":""},{"n":"Bass","v":45,"min":0,"max":100,"u":""},{"n":"Middle","v":60,"min":0,"max":100,"u":""},{"n":"Treble","v":65,"min":0,"max":100,"u":""},{"n":"Presence","v":50,"min":0,"max":100,"u":""},{"n":"Level","v":50,"min":0,"max":100,"u":""}]},
+     {"key":"ns","label":"NS","on":true,"type":"","params":[{"n":"Threshold","v":30,"min":0,"max":100,"u":""},{"n":"Release","v":30,"min":0,"max":100,"u":""}]},
+     {"key":"eq","label":"EQ","on":false,"type":"","params":[{"n":"Low","v":0,"min":-20,"max":20,"u":"dB"},{"n":"Mid","v":0,"min":-20,"max":20,"u":"dB"},{"n":"High","v":0,"min":-20,"max":20,"u":"dB"},{"n":"Level","v":0,"min":-20,"max":20,"u":"dB"}]},
+     {"key":"fx2","label":"FX2","on":false,"type":"TREMOLO","params":[{"n":"Rate","v":50,"min":0,"max":100,"u":""},{"n":"Depth","v":50,"min":0,"max":100,"u":""},{"n":"Level","v":50,"min":0,"max":100,"u":""}]},
+     {"key":"dly","label":"DELAY","on":false,"type":"ANALOG","params":[{"n":"Time","v":280,"min":1,"max":2000,"u":"ms"},{"n":"Feedback","v":20,"min":0,"max":100,"u":""},{"n":"E.Level","v":25,"min":0,"max":120,"u":""}]},
+     {"key":"rev","label":"REVERB","on":true,"type":"SPRING","params":[{"n":"Time","v":20,"min":1,"max":100,"u":"×0.1s"},{"n":"Pre Delay","v":0,"min":0,"max":500,"u":"ms"},{"n":"E.Level","v":25,"min":0,"max":100,"u":""}]},
+     {"key":"pfx","label":"PEDAL FX","on":false,"type":"WAH","params":[{"n":"Pedal","v":50,"min":0,"max":100,"u":""},{"n":"Level","v":50,"min":0,"max":100,"u":""}]},
+     {"key":"fv","label":"FV","on":true,"type":"","params":[{"n":"Volume","v":100,"min":0,"max":100,"u":""}]}
+    ]}]
+ },
+ {"kind":"playlist","id":"p-ex1","example":true,"name":"เซ็ตตัวอย่าง","songIds":["s-ex1","s-ex2"]}
+]
+</script>
+
+<script>
+(function(){
+"use strict";
+/* ---------- helpers ---------- */
+const $ = (s, el=document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid = p => p + "-" + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+const clone = o => JSON.parse(JSON.stringify(o));
+const clamp = (v,a,b) => Math.min(b, Math.max(a, v));
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true,2200); }
+const ls = { get(k){ try{return localStorage.getItem(k)}catch(e){return null} }, set(k,v){ try{localStorage.setItem(k,v)}catch(e){} } };
+
+/* ---------- constants ---------- */
+const TUNINGS = ["Standard (E A D G B E)","Eb Standard (ลดครึ่งเสียง)","Drop D","D Standard","Open G","Open D","Open E","DADGAD"];
+const PICKUPS = {
+  SSS:["Bridge","Bridge+Middle","Middle","Middle+Neck","Neck"],
+  HSS:["Bridge","Bridge+Middle","Middle","Middle+Neck","Neck"],
+  HSH:["Bridge","Bridge+Middle","Middle","Middle+Neck","Neck"],
+  SS:["Bridge","Both","Neck"], HH:["Bridge","Both","Neck"], P90:["Bridge","Both","Neck"],
+  ACOUSTIC:["Piezo / Mic"]
+};
+const PICKUP_LABEL = {SSS:"S-S-S (Strat 5 ทาง)",HSS:"H-S-S",HSH:"H-S-H",SS:"S-S (Tele 3 ทาง)",HH:"H-H",P90:"P-90",ACOUSTIC:"โปร่งไฟฟ้า"};
+const OUTPUTS = ["USB → คอม","หูฟัง","แอมป์ (Return / Power amp)","แอมป์ (หน้า Input)","PA / Mixer"];
+const P = (n,v,min=0,max=100,u="") => ({n,v,min,max,u});
+const GT1_TYPES = {
+  fx1:["COMPRESSOR","LIMITER","T.WAH","AUTO WAH","OCTAVE","SLOW GEAR","TOUCH WAH","GRAPHIC EQ","PARAMETRIC EQ"],
+  od:["TREBLE BOOST","CLEAN BOOST","MID BOOST","BLUES OD","NATURAL OD","T-SCREAM","WARM OD","TURBO OD","CRUNCH","DISTORTION","MID DS","RAT","GUV DS","DST+","METAL ZONE","OCT FUZZ","FUZZ FACE","MUFF FUZZ"],
+  pre:["NATURAL CLEAN","FULL RANGE","COMBO CRUNCH","STACK CRUNCH","HiGAIN STACK","POWER DRIVE","EXTREME LEAD","CORE METAL","JC-120","CLEAN TWIN","PRO CRUNCH","TWEED","DELUXE CRUNCH","VO DRIVE","VO LEAD","MATCH DRIVE","BG LEAD","BG DRIVE","MS1959 I","MS1959 I+II","R-FIER VINTAGE","R-FIER MODERN","T-AMP LEAD","SLDN","5150 DRIVE"],
+  fx2:["CHORUS","FLANGER","PHASER","TREMOLO","VIBRATO","ROTARY","UNI-V","PAN","HARMONIST","PITCH SHIFTER","OCTAVE","RING MOD","SLICER","DELAY"],
+  dly:["DIGITAL","ANALOG","TAPE ECHO","PAN","DUAL","REVERSE","MODULATE","SHIMMER"],
+  rev:["AMBIENCE","ROOM","HALL","PLATE","SPRING","MODULATE"],
+  pfx:["WAH","+1 OCT","+2 OCT","PITCH BEND"],
+};
+function gt1Blocks(){
+  return [
+    {key:"fx1",label:"FX1",on:false,type:"COMPRESSOR",params:[P("Sustain",50),P("Attack",50),P("Level",50)]},
+    {key:"od",label:"OD/DS",on:false,type:"BLUES OD",params:[P("Drive",40,0,120),P("Tone",50),P("Bottom",50),P("Level",50)]},
+    {key:"pre",label:"PREAMP",on:true,type:"NATURAL CLEAN",params:[P("Gain",30,0,120),P("Bass",50),P("Middle",50),P("Treble",50),P("Presence",50),P("Level",50)]},
+    {key:"ns",label:"NS",on:true,type:"",params:[P("Threshold",30),P("Release",30)]},
+    {key:"eq",label:"EQ",on:false,type:"",params:[P("Low",0,-20,20,"dB"),P("Mid",0,-20,20,"dB"),P("High",0,-20,20,"dB"),P("Level",0,-20,20,"dB")]},
+    {key:"fx2",label:"FX2",on:false,type:"CHORUS",params:[P("Rate",40),P("Depth",50),P("Level",50)]},
+    {key:"dly",label:"DELAY",on:false,type:"DIGITAL",params:[P("Time",350,1,2000,"ms"),P("Feedback",30),P("E.Level",35,0,120)]},
+    {key:"rev",label:"REVERB",on:true,type:"ROOM",params:[P("Time",20,1,100,"×0.1s"),P("Pre Delay",10,0,500,"ms"),P("E.Level",25)]},
+    {key:"pfx",label:"PEDAL FX",on:false,type:"WAH",params:[P("Pedal",50),P("Level",50)]},
+    {key:"fv",label:"FV",on:true,type:"",params:[P("Volume",100)]},
+  ];
+}
+const PEDAL_TYPES = {
+  comp:{l:"Compressor",k:["Level","Sustain","Attack"],c:"#2F6DB5"},
+  boost:{l:"Boost / Treble booster",k:["Gain","Level"],c:"#BFC3C0"},
+  od:{l:"Overdrive",k:["Drive","Tone","Level"],c:"#3E8E4F"},
+  dist:{l:"Distortion",k:["Dist","Tone","Level"],c:"#E07A1F"},
+  fuzz:{l:"Fuzz",k:["Fuzz","Tone","Volume"],c:"#7C3A8C"},
+  wah:{l:"Wah",k:["Position","Q"],c:"#2B2B2B"},
+  eq:{l:"EQ",k:["Low","Mid","High","Level"],c:"#56636B"},
+  chorus:{l:"Chorus",k:["Rate","Depth","Level"],c:"#3FA7C9"},
+  phaser:{l:"Phaser",k:["Rate","Depth"],c:"#E8B32A"},
+  flanger:{l:"Flanger",k:["Rate","Depth","Regen"],c:"#5E56C8"},
+  trem:{l:"Tremolo",k:["Rate","Depth"],c:"#A8433A"},
+  delay:{l:"Delay",k:["Time","Feedback","Mix"],c:"#D5DBDD"},
+  reverb:{l:"Reverb",k:["Decay","Tone","Mix"],c:"#2A8C86"},
+  octave:{l:"Octave / Pitch",k:["Sub","Up","Dry"],c:"#B33B5E"},
+  gate:{l:"Noise gate",k:["Threshold"],c:"#444C52"},
+  other:{l:"อื่นๆ",k:["A","B","C"],c:"#5A4A3A"},
+};
+function pedalBlocks(dev){
+  return [{key:"main",label:dev.name,on:true,type:"",params:(dev.knobs||["Level"]).map(n=>P(n,5,0,10))}];
+}
+function textOn(hex){
+  const m=/^#?([0-9a-f]{6})$/i.exec(hex||""); if(!m) return "#fff";
+  const n=parseInt(m[1],16), r=n>>16&255,g=n>>8&255,b=n&255;
+  return (0.299*r+0.587*g+0.114*b) > 150 ? "#141414" : "#F5F5F5";
+}
+
+/* ---------- storage ---------- */
+const Store = {
+  mode:"memory", items:new Map(), col:null, timers:new Map(), inflight:new Map(), deleting:new Set(), listeners:[],
+  list(kind){ return [...this.items.values()].filter(x=>x.kind===kind); },
+  get(id){ return this.items.get(id); },
+  emit(){ this.listeners.forEach(f=>f()); },
+  put(obj, delay=450){
+    obj.updatedAt = Date.now();
+    this.items.set(obj.id, obj);
+    clearTimeout(this.timers.get(obj.id));
+    this.timers.set(obj.id, setTimeout(()=>{ this.timers.delete(obj.id); this.write(obj.id); }, delay));
+  },
+  async write(id){
+    const obj = this.items.get(id);
+    if(this.mode==="sb"){
+      const prev = this.inflight.get(id) || Promise.resolve();
+      const p = prev.then(async()=>{
+        const cur = this.items.get(id); if(!cur) return;
+        const {error} = await sb.from("gm_items").upsert({user_id:this.uid,id,kind:cur.kind,data:clone(cur),updated_at:new Date().toISOString()});
+        if(error) setSaved(false,error); else setSaved(true);
+      });
+      this.inflight.set(id, p);
+      await p; if(this.inflight.get(id)===p) this.inflight.delete(id);
+    } else { this.saveLocal(); }
+    void obj;
+  },
+  async del(id){
+    clearTimeout(this.timers.get(id)); this.timers.delete(id);
+    this.items.delete(id);
+    if(this.mode==="sb"){
+      this.deleting.add(id);
+      const {error} = await sb.from("gm_items").delete().eq("user_id",this.uid).eq("id",id);
+      if(error) setSaved(false,error);
+      setTimeout(()=>this.deleting.delete(id), 4000);
+    } else this.saveLocal();
+  },
+  saveLocal(){
+    clearTimeout(this._lt);
+    this._lt = setTimeout(()=>{ ls.set("guitarman.v1", JSON.stringify([...this.items.values()])); setSaved(true); }, 200);
+  },
+  busy(id){ return this.timers.has(id) || this.inflight.has(id) || this.deleting.has(id); },
+  onSnap(snap){
+    let changed=false; const seen=new Set();
+    for(const d of snap.docs){
+      seen.add(d.id);
+      if(this.busy(d.id)) continue;
+      const data=d.data(); const cur=this.items.get(d.id);
+      if(!cur || JSON.stringify(cur)!==JSON.stringify(data)){ this.items.set(d.id, clone(data)); changed=true; }
+    }
+    if(!snap.metadata.fromCache){
+      for(const id of [...this.items.keys()]) if(!seen.has(id) && !this.busy(id)){ this.items.delete(id); changed=true; }
+    }
+    if(!this.ready){ this.ready=true; this.afterLoad(); changed=true; }
+    if(changed) this.emit();
+  },
+  ensureSeed(){
+    // the user's own guitars + GT-1 always exist
+    const seed = JSON.parse($("#seed").textContent);
+    for(const s of seed) if(!this.items.has(s.id) && !ls.get("gm.removed."+s.id) && !(this.removedSeeds||[]).includes(s.id)) this.put(s, 50);
+  },
+  afterLoad(){ if(this.mode==="db" && this.items.size===0){ this.ensureSeed(); } },
+  async initSupabase(session){
+    this.mode="sb"; this.uid=session.user.id; this.email=session.user.email; this.items.clear();
+    const {data,error} = await sb.from("gm_items").select("id,data").eq("user_id",this.uid);
+    if(error){ toast("โหลดข้อมูลไม่สำเร็จ: "+error.message); }
+    (data||[]).forEach(r=>this.items.set(r.id, r.data));
+    if(!error && this.items.size===0){
+      [...JSON.parse($("#seed").textContent), ...JSON.parse($("#examples").textContent)].forEach((x,i)=>this.put(x, 60+i*40));
+    }
+    if(this.chan) sb.removeChannel(this.chan);
+    this.chan = sb.channel("gm-"+this.uid).on("postgres_changes",{event:"*",schema:"public",table:"gm_items",filter:"user_id=eq."+this.uid}, p=>{
+      const row = p.new && p.new.id ? p.new : p.old; const id=row && row.id; if(!id || this.busy(id)) return;
+      if(p.eventType==="DELETE"){ if(this.items.delete(id)) this.emit(); return; }
+      const cur=this.items.get(id); if(!cur || JSON.stringify(cur)!==JSON.stringify(p.new.data)){ this.items.set(id, p.new.data); this.emit(); }
+    }).subscribe();
+    this.ready=true; this.emit();
+  },
+  initLocal(){
+    this.mode = canLocal() ? "local" : "memory"; this.items.clear();
+    const raw = ls.get("guitarman.v1");
+    let arr=null; try{ arr = raw ? JSON.parse(raw) : null; }catch(e){}
+    if(arr){ arr.forEach(x=>this.items.set(x.id,x)); }
+    else { [...JSON.parse($("#seed").textContent), ...JSON.parse($("#examples").textContent)].forEach(x=>this.items.set(x.id,x)); }
+    this.ready=true; this.emit();
+  }
+};
+function canLocal(){ try{ localStorage.setItem("gm.t","1"); localStorage.removeItem("gm.t"); return true; }catch(e){ return false; } }
+let saveState = {ok:true};
+function setSaved(ok,e){ saveState={ok, e}; const el=$("#savestat"); if(el) el.innerHTML = statHTML(); if(!ok) toast("บันทึกไม่สำเร็จ ลองอีกครั้ง"); }
+function statHTML(){
+  const m=Store.mode;
+  if(!saveState.ok) return `<span class="dot local"></span>บันทึกไม่สำเร็จ`;
+  if(m==="sb") return `<span class="dot"></span>ซิงก์กับ Supabase`;
+  if(m==="local") return `<span class="dot local"></span>บันทึกในเบราว์เซอร์นี้`;
+  return `<span class="dot local"></span>ไม่ได้บันทึก (โหมดทดลอง)`;
+}
+
+/* ---------- UI state ---------- */
+const S = { tab:"songs", songId:null, view:"sheet", q:"", plId:null, gearOpen:null, sel:{}, fs:+(ls.get("gm.fs")||17), armed:null };
+try{ const t=ls.get("gm.tab"); if(t) S.tab=t; }catch(e){}
+
+/* ---------- music ---------- */
+const SH=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"], FL=["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"];
+function noteIdx(n){ let i=SH.indexOf(n); if(i<0) i=FL.indexOf(n); if(i<0){ const alt={"E#":5,"B#":0,"Fb":4,"Cb":11}; i = alt[n] ?? -1; } return i; }
+function parseChord(c){
+  const m=/^([A-G])([#b]?)([^/]*)(?:\/([A-G][#b]?))?$/.exec(c.trim()); if(!m) return null;
+  return {root:m[1]+m[2], q:m[3], bass:m[4]||null};
+}
+function useFlats(key){ if(!key) return false; const k=key.trim(); return /b/.test(k.replace(/^.b?/,m=>m)) && k[1]==="b" || ["F","Dm","Gm","Cm","Fm","Bbm","Ebm"].includes(k); }
+function tNote(n, s, flat){ const i=noteIdx(n); if(i<0) return n; const j=((i+s)%12+12)%12; return (flat?FL:SH)[j]; }
+function transposeKey(key, s){ if(!key) return ""; const m=/^([A-G][#b]?)(.*)$/.exec(key.trim()); if(!m) return key; const nk = tNote(m[1], s, false); const flatPref = useFlats(tNote(m[1],s,true)+m[2]) || /^(Db|Eb|Gb|Ab|Bb)$/.test(tNote(m[1],s,true)); return (flatPref? tNote(m[1],s,true) : nk) + m[2]; }
+function tChord(c, s, flat){
+  if(!s) return c; const p=parseChord(c); if(!p) return c;
+  return tNote(p.root,s,flat)+p.q+(p.bass?"/"+tNote(p.bass,s,flat):"");
+}
+function renderSheet(body, s, key){
+  const flat = useFlats(transposeKey(key||"C", s));
+  const out=[]; const used=[];
+  for(const raw of (body||"").split("\n")){
+    const line=raw.replace(/\s+$/,"");
+    if(!line.trim()){ out.push('<div class="gap"></div>'); continue; }
+    if(/^#/.test(line)){ out.push(`<div class="lbl">${esc(line.replace(/^#+\s*/,""))}</div>`); continue; }
+    const re=/\[([^\]]+)\]/g; let m, last=0, segs=[], cur={c:"",t:""};
+    while((m=re.exec(line))){ cur.t+=line.slice(last,m.index); segs.push(cur); const c=tChord(m[1],s,flat); cur={c,t:""}; if(!used.includes(c)) used.push(c); last=re.lastIndex; }
+    cur.t+=line.slice(last); segs.push(cur);
+    segs = segs.filter((g,i)=> i>0 || g.t);
+    const hasChord = segs.some(g=>g.c), hasText = segs.some(g=>g.t.trim());
+    const cls = !hasChord ? "nochord" : !hasText ? "chordonly" : "";
+    if(!hasText && hasChord){ out.push(`<div class="ln ${cls}">`+segs.map(g=>`<span class="sg"><span class="ch">${esc(g.c)}${esc(g.t.replace(/\[|\]/g,""))}</span></span>`).join("")+`</div>`); continue; }
+    out.push(`<div class="ln ${cls}">`+segs.map(g=>`<span class="sg"><span class="ch">${esc(g.c)||"&nbsp;"}</span><span class="ly">${g.t?esc(g.t):"&nbsp;"}</span></span>`).join("")+`</div>`);
+  }
+  return {html:out.join(""), used};
+}
+/* chord shapes: low E → high e, -1 = muted */
+const OPEN = {
+  "C":[-1,3,2,0,1,0],"D":[-1,-1,0,2,3,2],"E":[0,2,2,1,0,0],"G":[3,2,0,0,0,3],"A":[-1,0,2,2,2,0],
+  "Am":[-1,0,2,2,1,0],"Dm":[-1,-1,0,2,3,1],"Em":[0,2,2,0,0,0],
+  "C7":[-1,3,2,3,1,0],"D7":[-1,-1,0,2,1,2],"E7":[0,2,0,1,0,0],"G7":[3,2,0,0,0,1],"A7":[-1,0,2,0,2,0],"B7":[-1,2,1,2,0,2],
+  "Am7":[-1,0,2,0,1,0],"Dm7":[-1,-1,0,2,1,1],"Em7":[0,2,0,0,0,0],
+  "Cmaj7":[-1,3,2,0,0,0],"Fmaj7":[-1,-1,3,2,1,0],"Dmaj7":[-1,-1,0,2,2,2],"Amaj7":[-1,0,2,1,2,0],"Gmaj7":[3,2,0,0,0,2],
+  "Asus2":[-1,0,2,2,0,0],"Asus4":[-1,0,2,2,3,0],"Dsus2":[-1,-1,0,2,3,0],"Dsus4":[-1,-1,0,2,3,3],"Esus4":[0,2,2,2,0,0],"Cadd9":[-1,3,2,0,3,0],
+  "D/F#":[2,0,0,2,3,2],"G/B":[-1,2,0,0,0,3],"C/G":[3,3,2,0,1,0],"C/B":[-1,2,2,0,1,0],"Am/G":[3,0,2,2,1,0],"F/C":[-1,3,3,2,1,1]
+};
+const EFORM={"":[0,2,2,1,0,0],"m":[0,2,2,0,0,0],"7":[0,2,0,1,0,0],"m7":[0,2,0,0,0,0],"sus4":[0,2,2,2,0,0]};
+const AFORM={"":[-1,0,2,2,2,0],"m":[-1,0,2,2,1,0],"7":[-1,0,2,0,2,0],"m7":[-1,0,2,0,1,0],"maj7":[-1,0,2,1,2,0],"sus4":[-1,0,2,2,3,0],"sus2":[-1,0,2,2,0,0]};
+function normQ(q){ return ({"min":"m","-":"m","M7":"maj7","Maj7":"maj7","ma7":"maj7","sus":"sus4","dom7":"7"})[q] ?? q; }
+function shapeFor(name){
+  if(OPEN[name]) return OPEN[name];
+  const p=parseChord(name); if(!p) return null;
+  const q=normQ(p.q); const key=SH[noteIdx(p.root)]+q;
+  if(!p.bass){ const k2 = FL[noteIdx(p.root)]+q; if(OPEN[key]) return OPEN[key]; if(OPEN[k2]) return OPEN[k2]; }
+  const ri=noteIdx(p.root); if(ri<0) return null;
+  const fe=((ri-4)%12+12)%12, fa=((ri-9)%12+12)%12;
+  const cands=[];
+  if(EFORM[q] && fe>0) cands.push([fe, EFORM[q]]);
+  if(AFORM[q] && fa>0) cands.push([fa, AFORM[q]]);
+  if(!cands.length) return null;
+  cands.sort((a,b)=>a[0]-b[0]);
+  const [f,sh]=cands[0];
+  return sh.map(v=>v<0?-1:v+f);
+}
+function diagramSVG(name){
+  const sh=shapeFor(name);
+  if(!sh) return `<div class="dg"><b>${esc(name)}</b><div class="no">ไม่มีภาพ<br>คอร์ด</div></div>`;
+  const fr=sh.filter(v=>v>0); const mx=Math.max(0,...fr), mn=fr.length?Math.min(...fr):1;
+  const base = mx<=4 ? 1 : mn;
+  const x=i=>10+i*9.2, y=f=>16+(f-base+0.5)*12;
+  let g=`<svg viewBox="0 0 66 80" class="dgs" aria-hidden="true">`;
+  g+= base===1 ? `<rect class="nut" x="10" y="15" width="46" height="2" fill="none" stroke-width="2"/>` : `<text x="58" y="25">${base}</text>`;
+  for(let i=0;i<6;i++) g+=`<line x1="${x(i)}" y1="16" x2="${x(i)}" y2="76" stroke-width=".8"/>`;
+  for(let f=0;f<=5;f++) g+=`<line x1="10" y1="${16+f*12}" x2="56" y2="${16+f*12}" stroke-width=".8"/>`;
+  // barre detection: lowest fret shared by string 0/1 and last string
+  const barre = base>1 || (sh[0]===sh[5] && sh[0]>0);
+  if(barre){ const bf=Math.min(...fr); const strs=sh.map((v,i)=>v===bf?i:-1).filter(i=>i>=0); if(strs.length>=3){ g+=`<rect class="dotc" x="${x(strs[0])-3}" y="${y(bf)-3.2}" width="${x(strs[strs.length-1])-x(strs[0])+6}" height="6.4" rx="3.2"/>`; } }
+  sh.forEach((v,i)=>{
+    if(v<0) g+=`<text x="${x(i)-2.6}" y="11">×</text>`;
+    else if(v===0) g+=`<circle cx="${x(i)}" cy="8" r="2.6" fill="none" class="dotc" style="fill:none;stroke:currentColor" stroke-width=".9"/>`;
+    else g+=`<circle class="dotc" cx="${x(i)}" cy="${y(v)}" r="3.4"/>`;
+  });
+  return `<div class="dg"><b>${esc(name)}</b>${g}</svg></div>`;
+}
+
+/* ---------- knob ---------- */
+function arc(r,a0,a1){ const pt=a=>[20+r*Math.sin(a*Math.PI/180), 20-r*Math.cos(a*Math.PI/180)]; const [x0,y0]=pt(a0),[x1,y1]=pt(a1); const large=Math.abs(a1-a0)>180?1:0; const sw=a1>a0?1:0; return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${large} ${sw} ${x1.toFixed(2)} ${y1.toFixed(2)}`; }
+function stepOf(p){ const r=p.max-p.min; return r<=10 ? 0.1 : 1; }
+function fmt(p,v){ const s=stepOf(p); const t = s<1 ? v.toFixed(1) : String(Math.round(v)); return t + (p.u && p.u!=="×0.1s" ? `<small> ${esc(p.u)}</small>` : p.u==="×0.1s" ? `<small> = ${(v/10).toFixed(1)}s</small>`:""); }
+function knobInner(p){
+  const f=(p.v-p.min)/(p.max-p.min||1); const a=-135+f*270;
+  const zero = p.min<0 ? 0 : -135; const z = p.min<0 ? -135+((0-p.min)/(p.max-p.min))*270 : -135;
+  const va = Math.abs(a-z)<0.5 ? "" : `<path class="val" d="${a>z?arc(17,z,a):arc(17,a,z)}"/>`;
+  void zero;
+  return `<svg viewBox="0 0 40 40" aria-hidden="true"><path class="trk" d="${arc(17,-135,135)}"/>${va}<circle class="cap" cx="20" cy="20" r="12"/><line class="ptr" x1="20" y1="20" x2="20" y2="10" transform="rotate(${a.toFixed(1)} 20 20)"/></svg>`;
+}
+function knob(p, attrs){
+  return `<div class="knob" tabindex="0" role="slider" aria-label="${esc(p.n)}" aria-valuemin="${p.min}" aria-valuemax="${p.max}" aria-valuenow="${p.v}" ${attrs}>${knobInner(p)}<span class="kv">${fmt(p,p.v)}</span><span class="kl">${esc(p.n)}</span></div>`;
+}
+
+/* ---------- data access ---------- */
+const songs = () => Store.list("song").sort((a,b)=>a.title.localeCompare(b.title,"th"));
+const guitars = () => Store.list("guitar").sort((a,b)=>a.name.localeCompare(b.name));
+const devices = () => Store.list("device").sort((a,b)=>a.name.localeCompare(b.name));
+const playlists = () => Store.list("playlist").sort((a,b)=>a.name.localeCompare(b.name,"th"));
+function curSong(){ return S.songId ? Store.get(S.songId) : null; }
+function newSong(){
+  const g=guitars()[0];
+  const s={kind:"song",id:uid("s"),title:"เพลงใหม่",artist:"",key:"C",capo:0,bpm:90,tuning:"Standard (E A D G B E)",transpose:0,
+    body:"# Verse\n[C]พิมพ์เนื้อเพลง แล้วใส่คอร์ดในวงเล็บ[G]เหลี่ยม\n[Am]ตรงพยางค์ที่เปลี่ยน[F]คอร์ด",notes:"",
+    guitarId:g?g.id:"",pickup:0,gknobs:{},output:"USB → คอม",rig:[]};
+  const gt=devices().find(d=>d.form==="multi"); if(gt) s.rig.push(newUnit(gt));
+  Store.put(s,50); return s;
+}
+function newUnit(dev){ return {uid:uid("u"),deviceId:dev.id,on:true,slot:dev.form==="multi"?"U01":"",patchName:"",patchLevel:100,note:"",blocks: dev.form==="multi"? gt1Blocks() : pedalBlocks(dev)}; }
+
+/* ---------- render ---------- */
+const app=$("#app");
+function render(){
+  if(!Store.ready){ return; }
+  if(S.songId && !Store.get(S.songId)) S.songId=null;
+  if(S.plId && !Store.get(S.plId)) S.plId=null;
+  const tabs=[["songs","เพลง"],["playlists","เพลย์ลิสต์"],["gear","กีตาร์ & เอฟเฟกต์"]];
+  app.innerHTML = `<header><div class="hbar wrap">
+    <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M21 3l8 8-3 1-6 6c1.6 2.8 1 6.6-1.8 9.4-3.4 3.4-8.4 3.8-11.2 1S4.6 21 8 17.6C10.8 14.8 14.6 14.2 17.4 15.8l6-6z" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round"/><circle cx="12.6" cy="21.4" r="2.2" fill="var(--accent)"/></svg>Guitar Man</div>
+    <nav class="tabs">${tabs.map(([k,l])=>`<button data-act="tab" data-v="${k}" aria-current="${S.tab===k}">${l}</button>`).join("")}</nav>
+    <div class="hstat"><span id="savestat">${statHTML()}</span>
+      <button class="btn sm ghost" data-act="export">สำรองข้อมูล</button><button class="btn sm ghost" data-act="import">นำเข้า</button>${Store.mode==="sb"?`<span title="${esc(Store.email)}" style="max-width:14ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(Store.email)}</span><button class="btn sm" data-act="signout">ออกจากระบบ</button>`:`<button class="btn sm" data-act="signin">เข้าสู่ระบบเพื่อซิงก์</button>`}</div>
+  </div></header><main class="wrap">${S.tab==="songs"?viewSongs():S.tab==="playlists"?viewPlaylists():viewGear()}</main>`;
+}
+function songItem(s){
+  const leds = (s.rig||[]).flatMap(u=>u.on? u.blocks.filter(b=>b.key!=="fv"&&b.key!=="ns").map(b=>`<i class="${b.on?"on":""}" title="${esc(b.label)}"></i>`):[]).join("");
+  return `<button class="item" data-act="song" data-v="${s.id}" aria-current="${S.songId===s.id}">
+    <span class="t">${esc(s.title)||"ไม่มีชื่อ"}</span><span class="k">${esc(transposeKey(s.key,s.transpose||0))}</span>
+    <span class="s">${s.example?'<span class="ex">ตัวอย่าง</span> ':""}${esc(s.artist)}</span>${leds?`<span class="leds">${leds}</span>`:""}</button>`;
+}
+function songListHTML(){
+  const q=S.q.trim().toLowerCase();
+  const arr=songs().filter(s=>!q || (s.title+" "+s.artist).toLowerCase().includes(q));
+  if(!arr.length) return `<div class="empty">${q?"ไม่พบเพลงที่ค้นหา":"ยังไม่มีเพลง<br>กด “เพิ่มเพลง” เพื่อเริ่มเก็บคอร์ดและซาวด์"}</div>`;
+  return arr.map(songItem).join("");
+}
+function viewSongs(){
+  const s=curSong();
+  if(!s && window.innerWidth>860 && songs().length) { S.songId=songs()[0].id; return viewSongs(); }
+  return `<div class="split ${s?"has-sel":""}">
+    <aside class="side"><div class="side-h"><input type="search" id="q" placeholder="ค้นหาเพลงหรือศิลปิน" value="${esc(S.q)}" aria-label="ค้นหาเพลง"><button class="btn pri" data-act="addsong">+ เพิ่มเพลง</button></div>
+    <div class="list" id="songlist">${songListHTML()}</div></aside>
+    <section class="detail">${s?songDetail(s):`<div class="card empty">เลือกเพลงจากรายการ หรือเพิ่มเพลงใหม่</div>`}</section></div>`;
+}
+function songDetail(s){
+  const g=Store.get(s.guitarId); const tr=s.transpose||0;
+  const views=[["sheet","คอร์ด & เนื้อร้อง"],["tone","ซาวด์ & เอฟเฟกต์"],["edit","แก้ไขข้อมูลเพลง"]];
+  const pos = g ? (PICKUPS[g.pickups]||[])[s.pickup] : "";
+  return `<div class="card">
+    <div class="dh">
+      <div class="row sp"><button class="btn sm back" data-act="back">← รายการเพลง</button></div>
+      <div class="row sp" style="align-items:flex-start"><div style="min-width:0"><h1>${esc(s.title)||"ไม่มีชื่อ"}</h1><div class="by">${s.example?'<span class="ex">ตัวอย่าง</span> ':""}${esc(s.artist)}</div></div>
+      <button class="btn pri" data-act="stage">▶ โหมดเล่น</button></div>
+      <div class="meta">
+        <span class="chip">Key <b>${esc(transposeKey(s.key,tr))}</b>${tr?` (เดิม ${esc(s.key)})`:""}</span>
+        ${+s.capo?`<span class="chip">Capo <b>${+s.capo}</b></span>`:""}
+        ${s.bpm?`<span class="chip"><b>${+s.bpm}</b> BPM</span>`:""}
+        <span class="chip">${esc(s.tuning)}</span>
+        ${g?`<span class="chip"><b>${esc(g.name)}</b> · ${esc(pos||"")}</span>`:""}
+        ${(s.rig||[]).filter(u=>u.on).map(u=>{const d=Store.get(u.deviceId); return d?`<span class="chip"><b>${esc(d.name)}</b>${u.slot?" · "+esc(u.slot):""}${u.patchName?" “"+esc(u.patchName)+"”":""}</span>`:""}).join("")}
+      </div>
+      <div class="seg" role="group" aria-label="มุมมอง">${views.map(([k,l])=>`<button data-act="view" data-v="${k}" aria-pressed="${S.view===k}">${l}</button>`).join("")}</div>
+    </div>
+    <div class="body" id="dbody">${S.view==="sheet"?sheetView(s):S.view==="tone"?toneView(s):editView(s)}</div></div>`;
+}
+function sheetView(s){
+  const tr=s.transpose||0; const r=renderSheet(s.body,tr,s.key);
+  return `<div class="row sp" style="margin-bottom:14px">
+      <div class="trans"><span class="hint">เปลี่ยนคีย์</span><button class="btn sm" data-act="tr" data-v="-1" aria-label="ลดครึ่งเสียง">−</button><b style="min-width:3ch;text-align:center">${tr>0?"+":""}${tr}</b><button class="btn sm" data-act="tr" data-v="1" aria-label="เพิ่มครึ่งเสียง">+</button>${tr?`<button class="btn sm ghost" data-act="tr" data-v="0">คืนค่า</button>`:""}</div>
+      <div class="trans"><span class="hint">ขนาดตัวอักษร</span><button class="btn sm" data-act="fs" data-v="-1">A−</button><button class="btn sm" data-act="fs" data-v="1">A+</button></div></div>
+    ${r.used.length?`<div class="diags">${r.used.map(diagramSVG).join("")}</div>`:""}
+    <div class="sheet" style="--fs:${S.fs}px">${r.html||'<p class="hint">ยังไม่มีเนื้อเพลง ไปที่ “แก้ไขข้อมูลเพลง” เพื่อเพิ่ม</p>'}</div>
+    ${s.notes?`<div class="notice" style="margin-top:18px">${esc(s.notes)}</div>`:""}`;
+}
+function editView(s){
+  return `<div style="display:grid;gap:14px">
+    <div class="grid-f">
+      <label class="f" style="grid-column:span 2">ชื่อเพลง<input type="text" id="e-title" data-f="title" value="${esc(s.title)}"></label>
+      <label class="f" style="grid-column:span 2">ศิลปิน<input type="text" id="e-artist" data-f="artist" value="${esc(s.artist)}"></label>
+      <label class="f">คีย์เดิม<input type="text" id="e-key" data-f="key" value="${esc(s.key)}" placeholder="เช่น G, Am, Bb"></label>
+      <label class="f">Capo<input type="number" id="e-capo" data-f="capo" min="0" max="12" value="${+s.capo||0}"></label>
+      <label class="f">BPM<input type="number" id="e-bpm" data-f="bpm" min="20" max="300" value="${+s.bpm||""}"></label>
+      <label class="f">จูนสาย<input type="text" id="e-tuning" data-f="tuning" list="tunings" value="${esc(s.tuning)}"></label>
+    </div>
+    <datalist id="tunings">${TUNINGS.map(t=>`<option value="${esc(t)}">`).join("")}</datalist>
+    <label class="f">เนื้อเพลงและคอร์ด<textarea id="e-body" data-f="body" rows="16" style="font-family:var(--f-mono);font-size:14px;line-height:1.6">${esc(s.body)}</textarea></label>
+    <p class="hint" style="margin:-8px 0 0">ใส่คอร์ดในวงเล็บเหลี่ยมไว้หน้าพยางค์ที่เปลี่ยน เช่น <code>[Am]ฝนตก[F]ที่หน้าต่าง</code> · ขึ้นบรรทัดด้วย <code># Chorus</code> เพื่อแบ่งท่อน</p>
+    <label class="f">โน้ตช่วยจำ (เทคนิคการเล่น, ท่อนที่ชอบลืม)<textarea id="e-notes" data-f="notes" rows="3">${esc(s.notes)}</textarea></label>
+    <div class="row sp"><span class="hint">บันทึกอัตโนมัติทุกครั้งที่พิมพ์</span>
+      <div class="row"><button class="btn" data-act="dupsong">ทำสำเนาเพลง</button><button class="btn danger ${S.armed==="song"?"arm":""}" data-act="delsong">${S.armed==="song"?"กดอีกครั้งเพื่อลบ":"ลบเพลง"}</button></div></div>
+  </div>`;
+}
+function toneView(s){
+  const g=Store.get(s.guitarId);
+  const gs=guitars();
+  const pos=g?(PICKUPS[g.pickups]||["—"]):[];
+  const gkn=(g?.knobs||["Volume","Tone"]).map(n=>knob({n,v:s.gknobs?.[n]??10,min:0,max:10,u:""},`data-gk="${esc(n)}"`)).join("");
+  const units=(s.rig||[]).map((u,i)=>unitHTML(s,u,i)).join('<span class="arrow">→</span>');
+  const devs=devices();
+  return `<div class="board"><div class="flow">
+    <div class="node guitar-node">
+      ${g?`<div class="gstrip" style="background:${esc(g.color)}"></div>`:""}
+      <h3>กีตาร์</h3>
+      <select id="t-guitar" data-act="guitar" aria-label="เลือกกีตาร์" style="width:100%;margin-bottom:10px"><option value="">— เลือกกีตาร์ —</option>${gs.map(x=>`<option value="${x.id}" ${x.id===s.guitarId?"selected":""}>${esc(x.name)}</option>`).join("")}</select>
+      ${g?`<div class="sub" style="margin-bottom:6px">ตำแหน่ง Pickup · ${esc(PICKUP_LABEL[g.pickups]||g.pickups)}</div>
+      <div class="seg" role="group" aria-label="Pickup">${pos.map((p,i)=>`<button data-act="pickup" data-v="${i}" aria-pressed="${(s.pickup||0)===i}">${i+1}. ${esc(p)}</button>`).join("")}</div>
+      <div class="knobs" style="margin-top:12px">${gkn}</div>`:`<p class="hint">ยังไม่ได้เลือกกีตาร์</p>`}
+    </div>
+    ${s.rig?.length?`<span class="arrow">→</span>`:""}
+    ${units}
+    <span class="arrow">→</span>
+    <div class="node outnode"><h3>ปลายทาง</h3><input type="text" id="t-output" data-f="output" list="outputs" value="${esc(s.output||"")}" style="width:100%"><datalist id="outputs">${OUTPUTS.map(o=>`<option value="${esc(o)}">`).join("")}</datalist></div>
+  </div>
+  <div class="add-unit"><select id="t-adddev" aria-label="เพิ่มอุปกรณ์"><option value="">+ เพิ่มอุปกรณ์เข้าเพลงนี้…</option>${devs.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join("")}</select>
+    <button class="btn" data-act="addunit">เพิ่ม</button><span class="hint">ลากปุ่มขึ้น/ลงเพื่อหมุน หรือกดแล้วใช้ลูกศร ↑ ↓</span></div>
+  </div>
+  <label class="f" style="margin-top:16px">โน้ตเรื่องซาวด์ของเพลงนี้<textarea id="t-tnotes" data-f="toneNotes" rows="2" placeholder="เช่น เปิด DELAY แค่ท่อนโซโล่, ใช้ CTL สลับ OD">${esc(s.toneNotes||"")}</textarea></label>`;
+}
+function unitHTML(s,u,i){
+  const d=Store.get(u.deviceId);
+  const ctl=`<button class="btn sm" data-act="umove" data-i="${i}" data-v="-1" aria-label="ย้ายไปก่อน">◀</button><button class="btn sm" data-act="umove" data-i="${i}" data-v="1" aria-label="ย้ายไปหลัง">▶</button><button class="btn sm" data-act="udel" data-i="${i}" aria-label="เอาออก">✕</button>`;
+  if(!d) return `<div class="node"><h3>อุปกรณ์ถูกลบแล้ว</h3>${ctl}</div>`;
+  if(d.form!=="multi"){
+    const b=u.blocks[0]; const fg=textOn(d.color);
+    return `<div class="pedal ${u.on?"":"off"}" style="background:${esc(d.color)};color:${fg}">
+      <div class="knobs" style="justify-content:center">${b.params.map((p,pi)=>knob(p,`data-u="${u.uid}" data-b="0" data-p="${pi}"`)).join("")}</div>
+      <div><div class="pn">${esc(d.name)}</div><div class="pb" style="text-align:center">${esc(d.brand||"")}</div></div>
+      <span class="led ${u.on?"on":""}"></span><button class="foot" data-act="uon" data-i="${i}" aria-label="เปิด/ปิด ${esc(d.name)}" aria-pressed="${u.on}"></button>
+      <div class="pctl">${ctl.replace(/btn sm/g,"")}</div></div>`;
+  }
+  const selKey = S.sel[u.uid] || (u.blocks.find(b=>b.on && b.key==="od") || u.blocks.find(b=>b.key==="pre"))?.key || u.blocks[0].key;
+  const bi = u.blocks.findIndex(b=>b.key===selKey); const b=u.blocks[bi];
+  const types = GT1_TYPES[b.key]||[];
+  return `<div class="node unit">
+    <div class="unit-h"><h3 style="margin:0">${esc(d.name)}</h3>
+      <div class="lcd"><input type="text" id="lcd-slot-${u.uid}" data-uf="slot" data-i="${i}" value="${esc(u.slot)}" aria-label="หมายเลข patch" maxlength="6"><input type="text" class="nm" id="lcd-name-${u.uid}" data-uf="patchName" data-i="${i}" value="${esc(u.patchName)}" placeholder="PATCH NAME" aria-label="ชื่อ patch" maxlength="16"></div>
+      <label class="sub" style="display:flex;gap:6px;align-items:center">Patch Level<input type="number" id="lcd-lv-${u.uid}" data-uf="patchLevel" data-i="${i}" value="${+u.patchLevel||0}" min="0" max="200" style="width:5.5em"></label>
+      <div style="margin-left:auto" class="row">${ctl}</div></div>
+    <div class="chain" role="group" aria-label="ลำดับบล็อก">${u.blocks.map(x=>`<div class="blk" aria-current="${x.key===selKey}"><button class="led ${x.on?"on":""}" data-act="bon" data-i="${i}" data-v="${x.key}" aria-label="เปิด/ปิด ${esc(x.label)}" aria-pressed="${x.on}"></button><button data-act="bsel" data-u="${u.uid}" data-v="${x.key}" style="background:none;border:0;padding:0;display:grid;justify-items:center;color:inherit"><span class="bn">${esc(x.label)}</span><span class="bt">${esc(x.type||"—")}</span></button></div>`).join("")}</div>
+    <div class="bedit">
+      <div class="row">
+        <button class="btn sm" data-act="bon" data-i="${i}" data-v="${b.key}" aria-pressed="${b.on}"><span class="led ${b.on?"on":""}" style="display:inline-block;margin-right:6px;vertical-align:middle"></span>${esc(b.label)} ${b.on?"ON":"OFF"}</button>
+        ${b.key==="ns"||b.key==="fv"||b.key==="eq"?"":`<label class="sub row">Type <input type="text" id="bt-${u.uid}-${b.key}" data-bt="${b.key}" data-i="${i}" list="types-${b.key}" value="${esc(b.type)}" style="width:13em"></label><datalist id="types-${b.key}">${types.map(t=>`<option value="${esc(t)}">`).join("")}</datalist>`}
+      </div>
+      <div class="knobs">${b.params.map((p,pi)=>knob(p,`data-u="${u.uid}" data-b="${bi}" data-p="${pi}"`)).join("")}</div>
+    </div>
+    <div class="tsl" id="tsl-${u.uid}">${tslHTML(s,i)}</div>
+    <label class="sub" style="display:block;margin-top:10px">โน้ต (CTL / EXP / ตั้งค่าเพิ่มเติม)<input type="text" id="un-${u.uid}" data-uf="note" data-i="${i}" value="${esc(u.note)}" style="width:100%;margin-top:4px"></label>
+  </div>`;
+}
+function tslHTML(s,i){
+  const t=Store.get("tsl-"+s.id);
+  return `<span class="hint">ไฟล์ patch จาก BOSS Tone Studio:</span>${t?`<b>${esc(t.filename)}</b> <span class="hint">(${(t.content.length/1024).toFixed(1)} KB)</span><button class="btn sm" data-act="tsldl">ดาวน์โหลด</button><button class="btn sm" data-act="tslrm">เอาออก</button>`:`<button class="btn sm" data-act="tslup">แนบไฟล์ .tsl</button>`}`;
+  void i;
+}
+/* playlists */
+function viewPlaylists(){
+  const pls=playlists(); if(!S.plId && pls.length && window.innerWidth>860) S.plId=pls[0].id;
+  const p=S.plId?Store.get(S.plId):null;
+  return `<div class="split ${p?"has-sel":""}">
+  <aside class="side"><div class="side-h"><b style="flex:1;align-self:center">เพลย์ลิสต์</b><button class="btn pri" data-act="addpl">+ สร้าง</button></div>
+    <div class="list">${pls.length?pls.map(x=>`<button class="item" data-act="pl" data-v="${x.id}" aria-current="${S.plId===x.id}"><span class="t">${esc(x.name)}</span><span class="k">${x.songIds.length}</span><span class="s">${x.example?'<span class="ex">ตัวอย่าง</span> ':""}${x.songIds.length} เพลง</span></button>`).join(""):`<div class="empty">ยังไม่มีเพลย์ลิสต์</div>`}</div></aside>
+  <section class="detail">${p?plDetail(p):`<div class="card empty">สร้างเพลย์ลิสต์เพื่อจัดลำดับเพลงสำหรับซ้อมหรือขึ้นเล่น</div>`}</section></div>`;
+}
+function plDetail(p){
+  const all=songs(); const items=p.songIds.map(id=>Store.get(id)).filter(Boolean);
+  return `<div class="card"><div class="dh">
+    <div class="row sp"><button class="btn sm back" data-act="back">← เพลย์ลิสต์ทั้งหมด</button></div>
+    <div class="row sp"><input type="text" id="pl-name" data-pf="name" value="${esc(p.name)}" aria-label="ชื่อเพลย์ลิสต์" style="font-family:var(--f-display);font-size:24px;font-weight:700;flex:1;min-width:0;background:none;border-color:transparent;padding-left:0">
+      <button class="btn pri" data-act="plplay" ${items.length?"":"disabled"}>▶ เล่นทั้งชุด</button></div></div>
+    <div class="body">
+      <div class="pl-songs">${items.length?items.map((s,i)=>`<div class="pls"><span class="n">${i+1}</span><div style="min-width:0"><div class="t">${esc(s.title)}</div><div class="s">${esc(s.artist)} · Key ${esc(transposeKey(s.key,s.transpose||0))}${s.bpm?" · "+s.bpm+" BPM":""}</div></div>
+        <div class="row"><button class="btn sm" data-act="plmv" data-i="${i}" data-v="-1" aria-label="ขึ้น">↑</button><button class="btn sm" data-act="plmv" data-i="${i}" data-v="1" aria-label="ลง">↓</button><button class="btn sm" data-act="plrm" data-i="${i}" aria-label="เอาออก">✕</button></div></div>`).join(""):`<div class="empty">ยังไม่มีเพลงในเพลย์ลิสต์นี้</div>`}</div>
+      <div class="row"><select id="pl-add" aria-label="เลือกเพลง"><option value="">เลือกเพลงที่จะเพิ่ม…</option>${all.map(s=>`<option value="${s.id}">${esc(s.title)} — ${esc(s.artist)}</option>`).join("")}</select><button class="btn" data-act="pladd">เพิ่มเพลง</button>
+      <span style="flex:1"></span><button class="btn danger ${S.armed==="pl"?"arm":""}" data-act="delpl">${S.armed==="pl"?"กดอีกครั้งเพื่อลบ":"ลบเพลย์ลิสต์"}</button></div>
+    </div></div>`;
+}
+/* gear */
+function viewGear(){
+  const gs=guitars(), ds=devices();
+  return `<div class="gear">
+    <section class="card"><div class="dh"><div class="row sp"><h2 class="sec" style="margin:0">กีตาร์</h2><button class="btn pri sm" data-act="addg">+ เพิ่มกีตาร์</button></div></div>
+      ${gs.map(guitarCard).join("")||`<div class="empty">ยังไม่มีกีตาร์</div>`}</section>
+    <section class="card"><div class="dh"><div class="row sp"><h2 class="sec" style="margin:0">เอฟเฟกต์</h2><div class="row"><button class="btn sm" data-act="addgt1">+ มัลติเอฟเฟกต์ GT-1</button><button class="btn pri sm" data-act="addd">+ เอฟเฟกต์ก้อน</button></div></div></div>
+      ${ds.map(deviceCard).join("")||`<div class="empty">ยังไม่มีเอฟเฟกต์</div>`}
+      <div class="gcard"><div class="notice">Boss GT-1 ต่อคอมผ่าน USB ได้ทั้งเป็น audio interface และใช้ BOSS Tone Studio แก้ patch · หน้านี้คุยกับตัวเครื่องโดยตรงไม่ได้ จึงใช้บันทึกค่าที่ตั้งไว้ และแนบไฟล์ .tsl ที่ export จาก Tone Studio เก็บไว้กับแต่ละเพลง</div></div></section>
+  </div>`;
+}
+function guitarCard(g){
+  const open=S.gearOpen===g.id;
+  return `<div class="gcard"><div class="gtitle"><span class="swatch" style="background:${esc(g.color)}"></span><div style="flex:1;min-width:0"><div class="t">${esc(g.name)}</div><div class="s">${esc(PICKUP_LABEL[g.pickups]||g.pickups)} · ${esc(g.tuning)}</div></div><button class="btn sm" data-act="gopen" data-v="${g.id}">${open?"ปิด":"แก้ไข"}</button></div>
+  ${open?`<div class="grid-f">
+    <label class="f" style="grid-column:1/-1">ชื่อ<input type="text" id="g-name-${g.id}" data-gf="name" data-id="${g.id}" value="${esc(g.name)}"></label>
+    <label class="f">ยี่ห้อ<input type="text" id="g-brand-${g.id}" data-gf="brand" data-id="${g.id}" value="${esc(g.brand||"")}"></label>
+    <label class="f">Pickup<select id="g-pu-${g.id}" data-gf="pickups" data-id="${g.id}">${Object.keys(PICKUPS).map(k=>`<option value="${k}" ${k===g.pickups?"selected":""}>${PICKUP_LABEL[k]}</option>`).join("")}</select></label>
+    <label class="f">สี<input type="color" id="g-col-${g.id}" data-gf="color" data-id="${g.id}" value="${esc(g.color||"#888888")}" style="height:38px;width:100%;border:1px solid var(--line);border-radius:8px;background:var(--bg)"></label>
+    <label class="f">จูนสายประจำ<input type="text" id="g-tun-${g.id}" data-gf="tuning" data-id="${g.id}" list="tunings2" value="${esc(g.tuning||"")}"></label>
+    <label class="f" style="grid-column:1/-1">ปุ่มบนกีตาร์ (คั่นด้วย ,)<input type="text" id="g-kn-${g.id}" data-gf="knobs" data-id="${g.id}" value="${esc((g.knobs||[]).join(", "))}"></label>
+    <label class="f" style="grid-column:1/-1">โน้ต<textarea id="g-nt-${g.id}" data-gf="notes" data-id="${g.id}" rows="2">${esc(g.notes||"")}</textarea></label>
+    <div><button class="btn danger sm ${S.armed===g.id?"arm":""}" data-act="delitem" data-v="${g.id}">${S.armed===g.id?"กดอีกครั้งเพื่อลบ":"ลบกีตาร์"}</button></div>
+  </div><datalist id="tunings2">${TUNINGS.map(t=>`<option value="${esc(t)}">`).join("")}</datalist>`:""}</div>`;
+}
+function deviceCard(d){
+  const open=S.gearOpen===d.id; const multi=d.form==="multi";
+  return `<div class="gcard"><div class="gtitle"><span class="swatch" style="background:${esc(d.color)}"></span><div style="flex:1;min-width:0"><div class="t">${esc(d.name)}</div><div class="s">${multi?"มัลติเอฟเฟกต์ · 10 บล็อก":esc((PEDAL_TYPES[d.ptype]||{}).l||"เอฟเฟกต์ก้อน")+" · "+esc((d.knobs||[]).join(" / "))}</div></div><button class="btn sm" data-act="gopen" data-v="${d.id}">${open?"ปิด":"แก้ไข"}</button></div>
+  ${open?`<div class="grid-f">
+    <label class="f" style="grid-column:1/-1">ชื่อ<input type="text" id="d-name-${d.id}" data-gf="name" data-id="${d.id}" value="${esc(d.name)}"></label>
+    <label class="f">ยี่ห้อ<input type="text" id="d-brand-${d.id}" data-gf="brand" data-id="${d.id}" value="${esc(d.brand||"")}"></label>
+    ${multi?"":`<label class="f">ประเภท<select id="d-type-${d.id}" data-gf="ptype" data-id="${d.id}">${Object.entries(PEDAL_TYPES).map(([k,v])=>`<option value="${k}" ${k===d.ptype?"selected":""}>${v.l}</option>`).join("")}</select></label>`}
+    <label class="f">สี<input type="color" id="d-col-${d.id}" data-gf="color" data-id="${d.id}" value="${esc(d.color||"#444444")}" style="height:38px;width:100%;border:1px solid var(--line);border-radius:8px;background:var(--bg)"></label>
+    ${multi?"":`<label class="f" style="grid-column:1/-1">ชื่อปุ่ม (คั่นด้วย ,)<input type="text" id="d-kn-${d.id}" data-gf="knobs" data-id="${d.id}" value="${esc((d.knobs||[]).join(", "))}"></label>`}
+    <label class="f" style="grid-column:1/-1">โน้ต<textarea id="d-nt-${d.id}" data-gf="notes" data-id="${d.id}" rows="2">${esc(d.notes||"")}</textarea></label>
+    <div><button class="btn danger sm ${S.armed===d.id?"arm":""}" data-act="delitem" data-v="${d.id}">${S.armed===d.id?"กดอีกครั้งเพื่อลบ":"ลบอุปกรณ์"}</button></div>
+  </div>`:""}</div>`;
+}
+
+/* ---------- stage mode ---------- */
+const ST = { queue:[], i:0, scroll:false, speed:3, raf:0, lock:null, last:0, acc:0 };
+function openStage(queue, i=0){
+  ST.queue=queue; ST.i=i; ST.scroll=false; $("#stage").hidden=false; document.body.style.overflow="hidden"; renderStage();
+  try{ navigator.wakeLock?.request("screen").then(l=>ST.lock=l).catch(()=>{}); }catch(e){}
+}
+function closeStage(){ $("#stage").hidden=true; document.body.style.overflow=""; ST.scroll=false; cancelAnimationFrame(ST.raf); try{ST.lock?.release();}catch(e){} ST.lock=null; render(); }
+function toneStrip(s){
+  const g=Store.get(s.guitarId); const parts=[];
+  if(g){ const pos=(PICKUPS[g.pickups]||[])[s.pickup||0]; const kn=(g.knobs||[]).map(n=>`${n.replace(/Tone \((\w+)\)/,"T.$1")} ${s.gknobs?.[n]??10}`).join(" · "); parts.push(`<span><b>${esc(g.name.split(" ").slice(-1)[0]==="Stratocaster"?"Rory Strat":g.name)}</b>${esc(pos||"")} · ${esc(kn)}</span>`); }
+  for(const u of s.rig||[]){ if(!u.on) continue; const d=Store.get(u.deviceId); if(!d) continue;
+    if(d.form==="multi"){ parts.push(`<span><b>${esc(d.name)}</b>${esc(u.slot)} ${esc(u.patchName||"")}</span>`);
+      u.blocks.filter(b=>b.on && b.key!=="fv" && b.key!=="ns").forEach(b=>parts.push(`<span><b>${esc(b.label)}</b>${esc(b.type)} ${b.params.map(p=>`${esc(p.n)} ${stepOf(p)<1?p.v.toFixed(1):Math.round(p.v)}${p.u==="ms"?"ms":""}`).join(" · ")}</span>`));
+    } else { const b=u.blocks[0]; parts.push(`<span><b>${esc(d.name)}</b>${b.params.map(p=>`${esc(p.n)} ${p.v.toFixed(1)}`).join(" · ")}</span>`); }
+  }
+  if(s.toneNotes) parts.push(`<span>${esc(s.toneNotes)}</span>`);
+  return parts.join("");
+}
+function renderStage(){
+  const s=Store.get(ST.queue[ST.i]); if(!s){ closeStage(); return; }
+  const tr=s.transpose||0; const r=renderSheet(s.body,tr,s.key);
+  const bp = s.bpm ? (60/s.bpm).toFixed(3)+"s" : "";
+  $("#stage").innerHTML = `<div class="st-top">
+    <div class="st-title"><h2>${esc(s.title)}</h2><span class="m">${esc(s.artist)}</span>
+      <span class="m">Key <b style="color:var(--stage-chord)">${esc(transposeKey(s.key,tr))}</b>${+s.capo?` · Capo ${+s.capo}`:""}${s.bpm?` · ${+s.bpm} BPM <span class="beat" style="--bp:${bp}"></span>`:""} · ${esc(s.tuning)}</span>
+      ${ST.queue.length>1?`<span class="m">เพลงที่ ${ST.i+1}/${ST.queue.length}</span>`:""}</div>
+    <div class="tone-strip">${toneStrip(s)}</div>
+    <div class="st-ctl">
+      ${ST.queue.length>1?`<button data-st="prev" ${ST.i?"":"disabled"}>◀ ก่อนหน้า</button><button data-st="next" ${ST.i<ST.queue.length-1?"":"disabled"}>ถัดไป ▶</button>`:""}
+      <button data-st="tr" data-v="-1" aria-label="ลดคีย์">♭</button><span class="v">${tr>0?"+":""}${tr}</span><button data-st="tr" data-v="1" aria-label="เพิ่มคีย์">♯</button>
+      <button data-st="fs" data-v="-2">A−</button><button data-st="fs" data-v="2">A+</button>
+      <button data-st="scroll" aria-pressed="${ST.scroll}">${ST.scroll?"❚❚ หยุดเลื่อน":"▼ เลื่อนอัตโนมัติ"}</button><button data-st="sp" data-v="-1" aria-label="ช้าลง">−</button><span class="v">${ST.speed}</span><button data-st="sp" data-v="1" aria-label="เร็วขึ้น">+</button>
+      <button data-st="diag" aria-pressed="${!!S.stDiag}">ภาพคอร์ด</button>
+      <span style="flex:1"></span><button data-st="close">✕ ปิด</button></div></div>
+  <div class="st-body" id="stbody"><div class="inner">${S.stDiag&&r.used.length?`<div class="diags">${r.used.map(diagramSVG).join("")}</div>`:""}<div class="sheet" style="--fs:${S.fs+6}px">${r.html}</div>${s.notes?`<p style="color:var(--stage-muted);margin-top:2em">${esc(s.notes)}</p>`:""}</div></div>`;
+}
+function scrollLoop(t){
+  if(!ST.scroll) return; const el=$("#stbody");
+  if(el){ const dt=ST.last? (t-ST.last)/1000 : 0; ST.acc += dt*ST.speed*9; const px=Math.floor(ST.acc); if(px){ el.scrollTop+=px; ST.acc-=px; } }
+  ST.last=t; ST.raf=requestAnimationFrame(scrollLoop);
+}
+$("#stage").addEventListener("click",e=>{
+  const b=e.target.closest("[data-st]"); if(!b) return; const a=b.dataset.st, v=+b.dataset.v;
+  const s=Store.get(ST.queue[ST.i]);
+  if(a==="close") return closeStage();
+  if(a==="prev"||a==="next"){ ST.i=clamp(ST.i+(a==="next"?1:-1),0,ST.queue.length-1); ST.scroll=false; renderStage(); $("#stbody").scrollTop=0; return; }
+  if(a==="tr"){ s.transpose=clamp((s.transpose||0)+v,-11,11); Store.put(s); }
+  if(a==="fs"){ S.fs=clamp(S.fs+v/2,12,34); ls.set("gm.fs",S.fs); }
+  if(a==="sp"){ ST.speed=clamp(ST.speed+v,1,15); }
+  if(a==="diag"){ S.stDiag=!S.stDiag; }
+  const top=$("#stbody")?.scrollTop||0;
+  if(a==="scroll"){ ST.scroll=!ST.scroll; ST.last=0; ST.acc=0; if(ST.scroll) ST.raf=requestAnimationFrame(scrollLoop); }
+  renderStage(); $("#stbody").scrollTop=top;
+});
+document.addEventListener("keydown",e=>{ if(!$("#stage").hidden && e.key==="Escape") closeStage(); });
+
+/* ---------- events ---------- */
+function moveIn(arr,i,d){ const j=i+d; if(j<0||j>=arr.length) return; [arr[i],arr[j]]=[arr[j],arr[i]]; }
+function arm(key){ if(S.armed===key){ S.armed=null; return true; } S.armed=key; clearTimeout(arm._t); arm._t=setTimeout(()=>{ S.armed=null; render(); },3500); return false; }
+app.addEventListener("click", async e=>{
+  const b=e.target.closest("[data-act]"); if(!b || b.tagName==="SELECT") return;
+  const a=b.dataset.act, v=b.dataset.v, s=curSong();
+  switch(a){
+    case "tab": S.tab=v; S.armed=null; ls.set("gm.tab",v); break;
+    case "song": S.songId=v; S.armed=null; window.scrollTo(0,0); break;
+    case "back": if(S.tab==="songs") S.songId=null; else S.plId=null; break;
+    case "addsong": { const n=newSong(); S.songId=n.id; S.view="edit"; S.q=""; break; }
+    case "view": S.view=v; S.armed=null; break;
+    case "stage": if(s) openStage([s.id]); return;
+    case "tr": s.transpose = v==="0"?0:clamp((s.transpose||0)+(+v),-11,11); Store.put(s); break;
+    case "fs": S.fs=clamp(S.fs+(+v),12,30); ls.set("gm.fs",S.fs); break;
+    case "dupsong": { const c=clone(s); c.id=uid("s"); c.title=s.title+" (สำเนา)"; delete c.example; (c.rig||[]).forEach(u=>u.uid=uid("u")); Store.put(c,50); S.songId=c.id; toast("ทำสำเนาแล้ว"); break; }
+    case "delsong": if(arm("song")){ const id=s.id; Store.del(id); if(Store.get("tsl-"+id)) Store.del("tsl-"+id); playlists().forEach(p=>{ if(p.songIds.includes(id)){ p.songIds=p.songIds.filter(x=>x!==id); Store.put(p);} }); S.songId=null; toast("ลบเพลงแล้ว"); } break;
+    case "pickup": s.pickup=+v; Store.put(s); break;
+    case "addunit": { const id=$("#t-adddev").value; const d=Store.get(id); if(!d){ toast("เลือกอุปกรณ์ก่อน"); return; } s.rig=s.rig||[]; s.rig.push(newUnit(d)); Store.put(s); break; }
+    case "umove": moveIn(s.rig,+b.dataset.i,+v); Store.put(s); break;
+    case "udel": s.rig.splice(+b.dataset.i,1); Store.put(s); break;
+    case "uon": { const u=s.rig[+b.dataset.i]; u.on=!u.on; Store.put(s); break; }
+    case "bon": { const u=s.rig[+b.dataset.i]; const bl=u.blocks.find(x=>x.key===v); bl.on=!bl.on; S.sel[u.uid]=v; Store.put(s); break; }
+    case "bsel": S.sel[b.dataset.u]=v; break;
+    case "tslup": $("#tslfile").click(); return;
+    case "tslrm": Store.del("tsl-"+s.id); break;
+    case "tsldl": { const t=Store.get("tsl-"+s.id); await saveFile(t.filename, t.content); return; }
+    case "addpl": { const p={kind:"playlist",id:uid("p"),name:"เพลย์ลิสต์ใหม่",songIds:[]}; Store.put(p,50); S.plId=p.id; break; }
+    case "pl": S.plId=v; S.armed=null; break;
+    case "pladd": { const p=Store.get(S.plId); const id=$("#pl-add").value; if(!id){ toast("เลือกเพลงก่อน"); return; } p.songIds.push(id); Store.put(p); break; }
+    case "plmv": { const p=Store.get(S.plId); moveIn(p.songIds,+b.dataset.i,+v); Store.put(p); break; }
+    case "plrm": { const p=Store.get(S.plId); p.songIds.splice(+b.dataset.i,1); Store.put(p); break; }
+    case "plplay": { const p=Store.get(S.plId); const q=p.songIds.filter(id=>Store.get(id)); if(q.length) openStage(q,0); return; }
+    case "delpl": if(arm("pl")){ Store.del(S.plId); S.plId=null; } break;
+    case "addg": { const g={kind:"guitar",id:uid("g"),name:"กีตาร์ใหม่",brand:"",pickups:"SSS",tuning:TUNINGS[0],color:"#8A8F8C",knobs:["Volume","Tone"],notes:""}; Store.put(g,50); S.gearOpen=g.id; break; }
+    case "addd": { const t=PEDAL_TYPES.od; const d={kind:"device",id:uid("d"),name:"Overdrive",brand:"",form:"pedal",ptype:"od",color:t.c,knobs:[...t.k],notes:""}; Store.put(d,50); S.gearOpen=d.id; break; }
+    case "addgt1": { const d={kind:"device",id:uid("d"),name:"Boss GT-1",brand:"BOSS",form:"multi",color:"#1A1C1B",notes:""}; Store.put(d,50); S.gearOpen=d.id; break; }
+    case "gopen": S.gearOpen = S.gearOpen===v?null:v; S.armed=null; break;
+    case "delitem": if(arm(v)){ Store.del(v); S.gearOpen=null; toast("ลบแล้ว"); } break;
+    case "export": return exportAll();
+    case "signout": await sb.auth.signOut(); return;
+    case "signin": Store.ready=false; showLogin(); return;
+    case "import": $("#importfile").click(); return;
+    default: return;
+  }
+  render();
+});
+app.addEventListener("change", e=>{
+  const t=e.target, s=curSong();
+  if(t.dataset.act==="guitar"){ s.guitarId=t.value; s.pickup=0; Store.put(s); render(); return; }
+  if(t.dataset.gf && (t.tagName==="SELECT" || t.type==="color")){ gearField(t); render(); }
+});
+app.addEventListener("input", e=>{
+  const t=e.target;
+  if(t.id==="q"){ S.q=t.value; $("#songlist").innerHTML=songListHTML(); return; }
+  const s=curSong();
+  if(t.dataset.f && S.tab==="songs" && s){
+    let v=t.value; if(t.type==="number") v = t.value===""? "" : +t.value;
+    s[t.dataset.f]=v; Store.put(s);
+    if(["title","artist","key"].includes(t.dataset.f)) { const li=$("#songlist"); if(li) li.innerHTML=songListHTML(); }
+    return;
+  }
+  if(t.dataset.uf){ const u=s.rig[+t.dataset.i]; u[t.dataset.uf] = t.type==="number"? +t.value : (t.dataset.uf==="patchName"||t.dataset.uf==="slot"? t.value.toUpperCase() : t.value); if(t.dataset.uf!=="note" && t.type!=="number"){ const pos=t.selectionStart; t.value=u[t.dataset.uf]; try{t.setSelectionRange(pos,pos);}catch(_){} } Store.put(s); return; }
+  if(t.dataset.bt){ const u=s.rig[+t.dataset.i]; const bl=u.blocks.find(x=>x.key===t.dataset.bt); bl.type=t.value.toUpperCase(); const pos=t.selectionStart; t.value=bl.type; try{t.setSelectionRange(pos,pos);}catch(_){} const lab=t.closest(".unit")?.querySelector(`.blk[aria-current="true"] .bt`); if(lab) lab.textContent=bl.type||"—"; Store.put(s); return; }
+  if(t.dataset.pf){ const p=Store.get(S.plId); p[t.dataset.pf]=t.value; Store.put(p); return; }
+  if(t.dataset.gf && t.tagName!=="SELECT" && t.type!=="color"){ gearField(t); }
+});
+function gearField(t){
+  const it=Store.get(t.dataset.id); const f=t.dataset.gf;
+  if(f==="knobs") it.knobs=t.value.split(",").map(x=>x.trim()).filter(Boolean);
+  else if(f==="ptype"){ it.ptype=t.value; const pt=PEDAL_TYPES[t.value]; it.knobs=[...pt.k]; it.color=pt.c; if(!it.name || Object.values(PEDAL_TYPES).some(x=>x.l===it.name) || it.name==="Overdrive") it.name=pt.l; }
+  else it[f]=t.value;
+  Store.put(it);
+  // keep pedal units in songs aligned to renamed knobs
+  if(f==="knobs"||f==="ptype"){ songs().forEach(s=>{ let ch=false; (s.rig||[]).forEach(u=>{ if(u.deviceId===it.id){ const old=u.blocks[0].params; u.blocks[0].params=it.knobs.map((n,i)=>P(n,old[i]?.v??5,0,10)); ch=true; } }); if(ch) Store.put(s,900); }); }
+}
+/* knobs: drag + keyboard */
+let drag=null;
+function knobTarget(el, s){
+  if(el.dataset.gk!==undefined){ const n=el.dataset.gk; return {p:{n,v:s.gknobs?.[n]??10,min:0,max:10,u:""}, set:v=>{ s.gknobs=s.gknobs||{}; s.gknobs[n]=v; }}; }
+  const u=s.rig.find(x=>x.uid===el.dataset.u); const p=u.blocks[+el.dataset.b].params[+el.dataset.p];
+  return {p, set:v=>{p.v=v;}};
+}
+function applyKnob(el, v){
+  const s=curSong(); const k=knobTarget(el,s); const st=stepOf(k.p);
+  v = clamp(Math.round(v/st)*st, k.p.min, k.p.max); v = +v.toFixed(st<1?1:0);
+  if(v===k.p.v) return; k.set(v); const p={...k.p, v};
+  el.querySelector("svg").outerHTML = knobInner(p); el.querySelector(".kv").innerHTML=fmt(p,v); el.setAttribute("aria-valuenow",v);
+  Store.put(s, 700);
+}
+app.addEventListener("pointerdown", e=>{
+  const el=e.target.closest(".knob"); if(!el) return; const s=curSong(); if(!s) return;
+  const k=knobTarget(el,s); drag={el, y:e.clientY, v:k.p.v, range:k.p.max-k.p.min}; el.classList.add("drag"); el.setPointerCapture(e.pointerId); e.preventDefault();
+});
+app.addEventListener("pointermove", e=>{ if(!drag) return; const dv=(drag.y-e.clientY)/160*drag.range; applyKnob(drag.el, drag.v+dv); });
+const endDrag=()=>{ if(drag){ drag.el.classList.remove("drag"); drag=null; } };
+app.addEventListener("pointerup", endDrag); app.addEventListener("pointercancel", endDrag);
+app.addEventListener("keydown", e=>{
+  const el=e.target.closest?.(".knob"); if(!el) return; const s=curSong(); const k=knobTarget(el,s); const r=k.p.max-k.p.min;
+  const big = r>=1000 ? 10 : r<=10 ? 0.5 : 2; let d=0;
+  if(e.key==="ArrowUp"||e.key==="ArrowRight") d=big; else if(e.key==="ArrowDown"||e.key==="ArrowLeft") d=-big; else if(e.key==="PageUp") d=big*5; else if(e.key==="PageDown") d=-big*5; else return;
+  e.preventDefault(); applyKnob(el, k.p.v+d);
+});
+app.addEventListener("dblclick", e=>{ const el=e.target.closest(".knob"); if(!el) return; const s=curSong(); const k=knobTarget(el,s); applyKnob(el, k.p.min<0?0:(k.p.max<=10?5:Math.round((k.p.min+k.p.max)/2))); });
+
+/* files */
+$("#tslfile").addEventListener("change", async e=>{
+  const f=e.target.files[0]; e.target.value=""; const s=curSong(); if(!f||!s) return;
+  if(f.size>200*1024){ toast("ไฟล์ใหญ่เกิน 200 KB"); return; }
+  const text=await f.text();
+  Store.put({kind:"tsl",id:"tsl-"+s.id,songId:s.id,filename:f.name,content:text},50); toast("แนบไฟล์แล้ว"); render();
+});
+$("#importfile").addEventListener("change", async e=>{
+  const f=e.target.files[0]; e.target.value=""; if(!f) return;
+  try{ const arr=JSON.parse(await f.text()); if(!Array.isArray(arr)) throw 0; let n=0; arr.forEach(x=>{ if(x&&x.id&&x.kind){ Store.put(x,80+n*30); n++; } }); toast(`นำเข้า ${n} รายการ`); render(); }
+  catch(_){ toast("ไฟล์นี้ไม่ใช่ไฟล์สำรองของ Guitar Man"); }
+});
+async function saveFile(name, data){
+  const blob = data instanceof Blob ? data : new Blob([data],{type:"application/octet-stream"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+function exportAll(){ const d=new Date(); const name=`guitar-man-backup-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}.json`; saveFile(name, JSON.stringify([...Store.items.values()],null,1)); }
+
+/* ---------- boot ---------- */
+let rT=0;
+Store.listeners.push(()=>{ cancelAnimationFrame(rT); rT=requestAnimationFrame(()=>{ if(drag) return; const ae=document.activeElement; const id=ae&&ae.id; const pos=ae&&ae.selectionStart;
+  if(ae && ae.tagName==="TEXTAREA" && app.contains(ae)) return; // don't disturb typing
+  render(); if(!$("#stage").hidden) renderStage();
+  if(id){ const n=document.getElementById(id); if(n){ n.focus(); try{ if(pos!=null) n.setSelectionRange(pos,pos);}catch(_){}} } }); });
+window.addEventListener("resize", ()=>{ clearTimeout(rT); });
+function showLogin(msg){
+  app.innerHTML = `<div class="login wrap"><div class="card login-card">
+    <div class="brand" style="justify-content:center;margin-bottom:6px"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M21 3l8 8-3 1-6 6c1.6 2.8 1 6.6-1.8 9.4-3.4 3.4-8.4 3.8-11.2 1S4.6 21 8 17.6C10.8 14.8 14.6 14.2 17.4 15.8l6-6z" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round"/><circle cx="12.6" cy="21.4" r="2.2" fill="var(--accent)"/></svg>Guitar Man</div>
+    <p class="hint" style="text-align:center;margin:0 0 14px">เข้าสู่ระบบเพื่อเก็บเพลง คอร์ด และ preset ไว้บน Supabase แล้วเปิดได้ทุกเครื่อง</p>
+    <form id="loginform" style="display:grid;gap:10px">
+      <label class="f">อีเมล<input type="email" id="lg-email" autocomplete="email" required style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px"></label>
+      <label class="f">รหัสผ่าน (อย่างน้อย 6 ตัว)<input type="password" id="lg-pass" autocomplete="current-password" minlength="6" required style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px"></label>
+      ${msg?`<div class="notice" id="lg-msg">${esc(msg)}</div>`:`<div class="notice" id="lg-msg" hidden></div>`}
+      <button class="btn pri" type="submit" data-mode="in">เข้าสู่ระบบ</button>
+      <button class="btn" type="button" id="lg-up">สมัครใช้งานด้วยอีเมลนี้</button>
+      <button class="btn ghost" type="button" id="lg-local">ใช้แบบไม่ล็อกอิน (เก็บในเบราว์เซอร์นี้)</button>
+    </form></div></div>`;
+  const say=t=>{ const m=$("#lg-msg"); m.textContent=t; m.hidden=false; };
+  $("#loginform").addEventListener("submit", async e=>{ e.preventDefault(); say("กำลังเข้าสู่ระบบ…");
+    const {error}=await sb.auth.signInWithPassword({email:$("#lg-email").value.trim(), password:$("#lg-pass").value});
+    if(error) say(error.message==="Invalid login credentials"?"อีเมลหรือรหัสผ่านไม่ถูกต้อง":error.message==="Email not confirmed"?"ยังไม่ได้ยืนยันอีเมล เปิดลิงก์ในอีเมลที่ส่งไปก่อน":error.message); });
+  $("#lg-up").addEventListener("click", async ()=>{ const email=$("#lg-email").value.trim(), password=$("#lg-pass").value;
+    if(!email||password.length<6){ say("ใส่อีเมลและรหัสผ่านอย่างน้อย 6 ตัวก่อน"); return; }
+    say("กำลังสมัคร…");
+    const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin}});
+    if(error) say(error.message); else if(!data.session) say("ส่งอีเมลยืนยันแล้ว กดลิงก์ในอีเมล แล้วกลับมาเข้าสู่ระบบที่หน้านี้"); });
+  $("#lg-local").addEventListener("click", ()=>{ ls.set("gm.localonly","1"); Store.initLocal(); render(); });
+}
+const CFG = window.GM_CONFIG || {};
+const sb = (window.supabase && CFG.supabaseUrl) ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey) : null;
+let curUid=null, authInit=false;
+if(!sb){ Store.initLocal(); render(); }
+else {
+  sb.auth.onAuthStateChange((ev, session)=>{
+    const id = session?.user?.id || null;
+    if(authInit && id===curUid && ev!=="SIGNED_OUT") return;
+    authInit=true; curUid=id;
+    setTimeout(async ()=>{
+      if(session){ ls.set("gm.localonly",""); await Store.initSupabase(session); render(); }
+      else if(ls.get("gm.localonly")==="1"){ Store.initLocal(); render(); }
+      else { Store.ready=false; if(Store.chan) sb.removeChannel(Store.chan); Store.items.clear(); Store.mode="memory"; showLogin(); }
+    },0);
+  });
+}
+})();
+</script>
+
+</body>
+</html>
