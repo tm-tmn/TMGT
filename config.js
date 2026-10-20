@@ -1,5 +1,5 @@
-// ค่าเชื่อมต่อ Supabase (publishable key ใช้ฝั่งเบราว์เซอร์ได้ ข้อมูลถูกป้องกันด้วย Row Level Security)
+// ใส่ OAuth Client ID (ประเภท Web application) จาก Google Cloud Console
+// ค่านี้เป็นข้อมูลสาธารณะ ใส่ในไฟล์ฝั่งเบราว์เซอร์ได้
 window.GM_CONFIG = {
-  supabaseUrl: "https://nuusbipagjhisxbqcxlv.supabase.co",
-  supabaseKey: "sb_publishable_b9NCE3DBOYTrNMTUJAUpNw_KddxaDxz"
+  googleClientId: ""
 };
