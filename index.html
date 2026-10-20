@@ -240,7 +240,7 @@ img{max-width:100%}
 .login{display:grid;place-items:center;min-height:80vh;padding-block:30px}
 .login-card{width:min(400px,100%);padding:24px}
 </style>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
 </head>
 <body>
@@ -375,127 +375,97 @@ function textOn(hex){
 
 /* ---------- storage ---------- */
 const Store = {
-  mode:"memory", items:new Map(), listeners:[], dirty:false, saving:false, email:"",
+  mode:"memory", items:new Map(), col:null, timers:new Map(), inflight:new Map(), deleting:new Set(), listeners:[],
   list(kind){ return [...this.items.values()].filter(x=>x.kind===kind); },
   get(id){ return this.items.get(id); },
   emit(){ this.listeners.forEach(f=>f()); },
-  put(obj, delay=450){ obj.updatedAt=Date.now(); this.items.set(obj.id,obj); this.dirty=true; this.schedule(delay); },
-  del(id){ this.items.delete(id); this.dirty=true; this.schedule(300); },
-  schedule(delay){ clearTimeout(this._t); this._t=setTimeout(()=>this.flush(), delay); },
-  async flush(){
-    if(!this.dirty || this.saving) return;
-    const snap=[...this.items.values()];
-    if(this.mode==="drive"){
-      ls.set("guitarman.drivebak", JSON.stringify(snap));
-      this.saving=true; this.dirty=false;
-      const ok=await Drive.save(snap);
-      this.saving=false;
-      if(ok){ if(this.dirty) this.schedule(100); } else this.dirty=true;
-    } else {
-      this.dirty=false; ls.set("guitarman.v1", JSON.stringify(snap)); setSaved(true);
-    }
+  put(obj, delay=450){
+    obj.updatedAt = Date.now();
+    this.items.set(obj.id, obj);
+    clearTimeout(this.timers.get(obj.id));
+    this.timers.set(obj.id, setTimeout(()=>{ this.timers.delete(obj.id); this.write(obj.id); }, delay));
   },
-  seedAll(){ return [...JSON.parse($("#seed").textContent), ...JSON.parse($("#examples").textContent)]; },
+  async write(id){
+    const obj = this.items.get(id);
+    if(this.mode==="sb"){
+      const prev = this.inflight.get(id) || Promise.resolve();
+      const p = prev.then(async()=>{
+        const cur = this.items.get(id); if(!cur) return;
+        const {error} = await sb.from("gm_items").upsert({user_id:this.uid,id,kind:cur.kind,data:clone(cur),updated_at:new Date().toISOString()});
+        if(error) setSaved(false,error); else setSaved(true);
+      });
+      this.inflight.set(id, p);
+      await p; if(this.inflight.get(id)===p) this.inflight.delete(id);
+    } else { this.saveLocal(); }
+    void obj;
+  },
+  async del(id){
+    clearTimeout(this.timers.get(id)); this.timers.delete(id);
+    this.items.delete(id);
+    if(this.mode==="sb"){
+      this.deleting.add(id);
+      const {error} = await sb.from("gm_items").delete().eq("user_id",this.uid).eq("id",id);
+      if(error) setSaved(false,error);
+      setTimeout(()=>this.deleting.delete(id), 4000);
+    } else this.saveLocal();
+  },
+  saveLocal(){
+    clearTimeout(this._lt);
+    this._lt = setTimeout(()=>{ ls.set("guitarman.v1", JSON.stringify([...this.items.values()])); setSaved(true); }, 200);
+  },
+  busy(id){ return this.timers.has(id) || this.inflight.has(id) || this.deleting.has(id); },
+  onSnap(snap){
+    let changed=false; const seen=new Set();
+    for(const d of snap.docs){
+      seen.add(d.id);
+      if(this.busy(d.id)) continue;
+      const data=d.data(); const cur=this.items.get(d.id);
+      if(!cur || JSON.stringify(cur)!==JSON.stringify(data)){ this.items.set(d.id, clone(data)); changed=true; }
+    }
+    if(!snap.metadata.fromCache){
+      for(const id of [...this.items.keys()]) if(!seen.has(id) && !this.busy(id)){ this.items.delete(id); changed=true; }
+    }
+    if(!this.ready){ this.ready=true; this.afterLoad(); changed=true; }
+    if(changed) this.emit();
+  },
+  ensureSeed(){
+    // the user's own guitars + GT-1 always exist
+    const seed = JSON.parse($("#seed").textContent);
+    for(const s of seed) if(!this.items.has(s.id) && !ls.get("gm.removed."+s.id) && !(this.removedSeeds||[]).includes(s.id)) this.put(s, 50);
+  },
+  afterLoad(){ if(this.mode==="db" && this.items.size===0){ this.ensureSeed(); } },
+  async initSupabase(session){
+    this.mode="sb"; this.uid=session.user.id; this.email=session.user.email; this.items.clear();
+    const {data,error} = await sb.from("gm_items").select("id,data").eq("user_id",this.uid);
+    if(error){ toast("โหลดข้อมูลไม่สำเร็จ: "+error.message); }
+    (data||[]).forEach(r=>this.items.set(r.id, r.data));
+    if(!error && this.items.size===0){
+      [...JSON.parse($("#seed").textContent), ...JSON.parse($("#examples").textContent)].forEach((x,i)=>this.put(x, 60+i*40));
+    }
+    if(this.chan) sb.removeChannel(this.chan);
+    this.chan = sb.channel("gm-"+this.uid).on("postgres_changes",{event:"*",schema:"public",table:"gm_items",filter:"user_id=eq."+this.uid}, p=>{
+      const row = p.new && p.new.id ? p.new : p.old; const id=row && row.id; if(!id || this.busy(id)) return;
+      if(p.eventType==="DELETE"){ if(this.items.delete(id)) this.emit(); return; }
+      const cur=this.items.get(id); if(!cur || JSON.stringify(cur)!==JSON.stringify(p.new.data)){ this.items.set(id, p.new.data); this.emit(); }
+    }).subscribe();
+    this.ready=true; this.emit();
+  },
   initLocal(){
     this.mode = canLocal() ? "local" : "memory"; this.items.clear();
-    const raw = ls.get("guitarman.v1"); let arr=null; try{ arr = raw ? JSON.parse(raw) : null; }catch(e){}
-    (arr || this.seedAll()).forEach(x=>this.items.set(x.id,x));
+    const raw = ls.get("guitarman.v1");
+    let arr=null; try{ arr = raw ? JSON.parse(raw) : null; }catch(e){}
+    if(arr){ arr.forEach(x=>this.items.set(x.id,x)); }
+    else { [...JSON.parse($("#seed").textContent), ...JSON.parse($("#examples").textContent)].forEach(x=>this.items.set(x.id,x)); }
     this.ready=true; this.emit();
   }
 };
-const Drive = {
-  tok:null, exp:0, fileId:null, mod:null, needAuth:false, tc:null, _res:null,
-  initClient(){
-    if(this.tc) return true;
-    if(!(window.google && google.accounts && google.accounts.oauth2) || !CFG.googleClientId) return false;
-    this.tc = google.accounts.oauth2.initTokenClient({
-      client_id:CFG.googleClientId, scope:"openid email https://www.googleapis.com/auth/drive.appdata",
-      callback:r=>this.onToken(r), error_callback:()=>{ if(this._res) this._res(false); }
-    });
-    return true;
-  },
-  request(){ return new Promise(res=>{ this._res=res; this.tc.requestAccessToken({prompt:""}); }); },
-  onToken(r){
-    if(r.error){ if(this._res) this._res(false); return; }
-    this.tok=r.access_token; this.exp=Date.now()+(Number(r.expires_in||3600)-90)*1000; this.needAuth=false;
-    try{ sessionStorage.setItem("gm.tok", JSON.stringify({t:this.tok,e:this.exp})); }catch(_){}
-    if(this._res) this._res(true);
-  },
-  async api(url, opts={}){
-    if(!this.tok || Date.now()>this.exp){ this.needAuth=true; throw {code:401}; }
-    const r=await fetch(url,{...opts, headers:{...(opts.headers||{}), Authorization:"Bearer "+this.tok}});
-    if(r.status===401){ this.needAuth=true; throw {code:401}; }
-    if(!r.ok) throw {code:r.status};
-    return r;
-  },
-  async load(){
-    const q=encodeURIComponent("name='tm-guitar.json'");
-    const j=await (await this.api(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,modifiedTime)&pageSize=1`)).json();
-    const f=(j.files||[])[0]; if(!f) return null;
-    this.fileId=f.id; this.mod=f.modifiedTime;
-    const d=await (await this.api(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media`)).json();
-    return Array.isArray(d) ? d : (d.items||[]);
-  },
-  async save(items){
-    try{
-      if(!this.fileId){
-        const r=await this.api("https://www.googleapis.com/drive/v3/files?fields=id",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:"tm-guitar.json",parents:["appDataFolder"],mimeType:"application/json"})});
-        this.fileId=(await r.json()).id;
-      }
-      const r2=await this.api(`https://www.googleapis.com/upload/drive/v3/files/${this.fileId}?uploadType=media&fields=modifiedTime`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({v:1,items})});
-      this.mod=(await r2.json()).modifiedTime; this.needAuth=false; setSaved(true); return true;
-    }catch(e){ setSaved(false,e); return false; }
-  },
-  async start(){
-    let arr;
-    try{ arr=await this.load(); }
-    catch(e){ showLogin(this.needAuth ? "เซสชัน Google หมดอายุ กดต่อด้วย Google อีกครั้ง" : "โหลดข้อมูลจาก Google Drive ไม่สำเร็จ ลองอีกครั้ง"); return false; }
-    Store.mode="drive"; Store.items.clear();
-    try{ const ui=await (await this.api("https://www.googleapis.com/oauth2/v3/userinfo")).json(); Store.email=ui.email||""; }catch(_){}
-    if(arr){ arr.forEach(x=>Store.items.set(x.id,x)); }
-    else {
-      let first=null; try{ first=JSON.parse(ls.get("guitarman.v1")||"null"); }catch(_){}
-      (first && first.length ? first : Store.seedAll()).forEach(x=>Store.items.set(x.id,x));
-      Store.dirty=true; Store.schedule(200);
-    }
-    ls.set("gm.google","1"); ls.set("gm.localonly","");
-    Store.ready=true; Store.emit(); return true;
-  },
-  async signIn(){
-    if(!this.initClient()) return "โหลดระบบ Google ไม่สำเร็จ ลองรีเฟรชหน้านี้";
-    const ok=await this.request();
-    if(!ok) return "ยังไม่ได้เข้าสู่ระบบ Google ลองอีกครั้ง (ถ้าเบราว์เซอร์บล็อกป๊อปอัป ให้อนุญาตก่อน)";
-    if(await this.start()) render();
-    return "";
-  },
-  async renew(){
-    if(!this.initClient()){ toast("โหลดระบบ Google ไม่สำเร็จ"); return; }
-    if(await this.request()){ setSaved(true); Store.dirty=true; Store.flush(); toast("ต่ออายุแล้ว"); }
-    else toast("ต่ออายุไม่สำเร็จ");
-  },
-  signOut(){
-    this.tok=null; this.exp=0; this.fileId=null; this.mod=null; this.needAuth=false;
-    try{ sessionStorage.removeItem("gm.tok"); }catch(_){}
-    ls.set("gm.google",""); ls.set("gm.localonly","");
-    Store.items.clear(); Store.mode="memory"; Store.ready=false; Store.email="";
-    showLogin();
-  }
-};
-document.addEventListener("visibilitychange", async ()=>{
-  if(document.hidden || Store.mode!=="drive" || Store.dirty || Store.saving || !Drive.fileId) return;
-  try{
-    const m=(await (await Drive.api(`https://www.googleapis.com/drive/v3/files/${Drive.fileId}?fields=modifiedTime`)).json()).modifiedTime;
-    if(m!==Drive.mod){ const arr=await Drive.load(); if(arr){ Store.items.clear(); arr.forEach(x=>Store.items.set(x.id,x)); Store.emit(); toast("อัปเดตข้อมูลจากอุปกรณ์อื่นแล้ว"); } }
-  }catch(e){ if(Drive.needAuth) setSaved(false); }
-});
 function canLocal(){ try{ localStorage.setItem("gm.t","1"); localStorage.removeItem("gm.t"); return true; }catch(e){ return false; } }
 let saveState = {ok:true};
-function setSaved(ok,e){ saveState={ok, e}; const el=$("#savestat"); if(el) el.innerHTML = statHTML(); if(!ok && !Drive.needAuth) toast("บันทึกไม่สำเร็จ ลองอีกครั้ง"); }
+function setSaved(ok,e){ saveState={ok, e}; const el=$("#savestat"); if(el) el.innerHTML = statHTML(); if(!ok) toast("บันทึกไม่สำเร็จ ลองอีกครั้ง"); }
 function statHTML(){
   const m=Store.mode;
-  if(m==="drive" && Drive.needAuth) return `<span class="dot local"></span>การเชื่อมต่อ Google หมดอายุ <button class="btn sm" data-act="reauth">ต่ออายุ</button>`;
   if(!saveState.ok) return `<span class="dot local"></span>บันทึกไม่สำเร็จ`;
-  if(m==="drive") return `<span class="dot"></span>ซิงก์กับ Google Drive`;
+  if(m==="sb") return `<span class="dot"></span>ซิงก์กับ Supabase`;
   if(m==="local") return `<span class="dot local"></span>บันทึกในเบราว์เซอร์นี้`;
   return `<span class="dot local"></span>ไม่ได้บันทึก (โหมดทดลอง)`;
 }
@@ -627,7 +597,7 @@ function render(){
     <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M21 3l8 8-3 1-6 6c1.6 2.8 1 6.6-1.8 9.4-3.4 3.4-8.4 3.8-11.2 1S4.6 21 8 17.6C10.8 14.8 14.6 14.2 17.4 15.8l6-6z" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round"/><circle cx="12.6" cy="21.4" r="2.2" fill="var(--accent)"/></svg>TM Guitar</div>
     <nav class="tabs">${tabs.map(([k,l])=>`<button data-act="tab" data-v="${k}" aria-current="${S.tab===k}">${l}</button>`).join("")}</nav>
     <div class="hstat"><span id="savestat">${statHTML()}</span>
-      <button class="btn sm ghost" data-act="export">สำรองข้อมูล</button><button class="btn sm ghost" data-act="import">นำเข้า</button>${Store.mode==="drive"?`<span title="${esc(Store.email)}" style="max-width:14ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(Store.email)}</span><button class="btn sm" data-act="signout">ออกจากระบบ</button>`:`<button class="btn sm" data-act="signin">เข้าสู่ระบบเพื่อซิงก์</button>`}</div>
+      <button class="btn sm ghost" data-act="export">สำรองข้อมูล</button><button class="btn sm ghost" data-act="import">นำเข้า</button>${Store.mode==="sb"?`<span title="${esc(Store.email)}" style="max-width:14ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(Store.email)}</span><button class="btn sm" data-act="signout">ออกจากระบบ</button>`:`<button class="btn sm" data-act="signin">เข้าสู่ระบบเพื่อซิงก์</button>`}</div>
   </div></header><main class="wrap">${S.tab==="songs"?viewSongs():S.tab==="playlists"?viewPlaylists():viewGear()}</main>`;
 }
 function songItem(s){
@@ -918,8 +888,7 @@ app.addEventListener("click", async e=>{
     case "gopen": S.gearOpen = S.gearOpen===v?null:v; S.armed=null; break;
     case "delitem": if(arm(v)){ Store.del(v); S.gearOpen=null; toast("ลบแล้ว"); } break;
     case "export": return exportAll();
-    case "signout": Drive.signOut(); return;
-    case "reauth": Drive.renew(); return;
+    case "signout": await sb.auth.signOut(); return;
     case "signin": Store.ready=false; showLogin(); return;
     case "import": $("#importfile").click(); return;
     default: return;
@@ -1011,30 +980,56 @@ Store.listeners.push(()=>{ cancelAnimationFrame(rT); rT=requestAnimationFrame(()
   if(id){ const n=document.getElementById(id); if(n){ n.focus(); try{ if(pos!=null) n.setSelectionRange(pos,pos);}catch(_){}} } }); });
 window.addEventListener("resize", ()=>{ clearTimeout(rT); });
 function showLogin(msg){
-  const noId=!CFG.googleClientId;
-  if(noId) msg="ยังไม่ได้ตั้งค่า Google Client ID ในไฟล์ config.js (ดูขั้นตอนใน README)";
-  app.innerHTML = `<div class="login wrap"><div class="card login-card" style="display:grid;gap:12px">
-    <div class="brand" style="justify-content:center"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M21 3l8 8-3 1-6 6c1.6 2.8 1 6.6-1.8 9.4-3.4 3.4-8.4 3.8-11.2 1S4.6 21 8 17.6C10.8 14.8 14.6 14.2 17.4 15.8l6-6z" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round"/><circle cx="12.6" cy="21.4" r="2.2" fill="var(--accent)"/></svg>TM Guitar</div>
-    <p class="hint" style="text-align:center;margin:0">เข้าสู่ระบบด้วย Google เพื่อเก็บเพลง คอร์ด และ preset ไว้ใน Google Drive ของคุณ แล้วเปิดได้ทุกเครื่อง</p>
-    <div class="notice" id="lg-msg" ${msg?"":"hidden"}>${esc(msg||"")}</div>
-    <button class="btn pri" type="button" id="lg-google" ${noId?"disabled":""}>ต่อด้วย Google</button>
-    <button class="btn ghost" type="button" id="lg-local">ใช้แบบไม่ล็อกอิน (เก็บในเบราว์เซอร์นี้)</button>
-    <p class="hint" style="font-size:12.5px;margin:0">ข้อมูลเก็บในโฟลเดอร์ซ่อนของแอปนี้บน Drive แอปเห็นเฉพาะไฟล์ของตัวเอง ไม่เห็นไฟล์อื่นของคุณ และรหัสผ่าน Google ไม่ผ่านเว็บนี้</p>
-  </div></div>`;
-  $("#lg-google").addEventListener("click", async e=>{
-    e.target.disabled=true; const m=$("#lg-msg"); m.hidden=false; m.textContent="กำลังเชื่อมต่อ Google…";
-    const err=await Drive.signIn();
-    if(err){ m.textContent=err; e.target.disabled=false; }
-  });
+  app.innerHTML = `<div class="login wrap"><div class="card login-card">
+    <div class="brand" style="justify-content:center;margin-bottom:6px"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M21 3l8 8-3 1-6 6c1.6 2.8 1 6.6-1.8 9.4-3.4 3.4-8.4 3.8-11.2 1S4.6 21 8 17.6C10.8 14.8 14.6 14.2 17.4 15.8l6-6z" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round"/><circle cx="12.6" cy="21.4" r="2.2" fill="var(--accent)"/></svg>TM Guitar</div>
+    <p class="hint" style="text-align:center;margin:0 0 14px">เข้าสู่ระบบเพื่อเก็บเพลง คอร์ด และ preset ไว้บน Supabase แล้วเปิดได้ทุกเครื่อง</p>
+    <form id="loginform" style="display:grid;gap:10px">
+      <label class="f">อีเมล<input type="email" id="lg-email" autocomplete="email" required style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px"></label>
+      <label class="f">รหัสผ่าน (อย่างน้อย 6 ตัว)<input type="password" id="lg-pass" autocomplete="current-password" minlength="6" required style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px"></label>
+      ${msg?`<div class="notice" id="lg-msg">${esc(msg)}</div>`:`<div class="notice" id="lg-msg" hidden></div>`}
+      <button class="btn pri" type="submit" data-mode="in">เข้าสู่ระบบ</button>
+      <button class="btn" type="button" id="lg-up">สมัครใช้งานด้วยอีเมลนี้</button>
+      <button class="btn ghost" type="button" id="lg-local">ใช้แบบไม่ล็อกอิน (เก็บในเบราว์เซอร์นี้)</button>
+    </form></div></div>`;
+  const say=t=>{ const m=$("#lg-msg"); m.textContent=t; m.hidden=false; };
+  $("#loginform").addEventListener("submit", async e=>{ e.preventDefault(); say("กำลังเข้าสู่ระบบ…");
+    const {error}=await sb.auth.signInWithPassword({email:$("#lg-email").value.trim(), password:$("#lg-pass").value});
+    if(error) say(error.message==="Invalid login credentials"?"อีเมลหรือรหัสผ่านไม่ถูกต้อง":error.message==="Email not confirmed"?"ยังไม่ได้ยืนยันอีเมล เปิดลิงก์ในอีเมลที่ส่งไปก่อน":error.message); });
+  $("#lg-up").addEventListener("click", async ()=>{ const email=$("#lg-email").value.trim(), password=$("#lg-pass").value;
+    if(!email||password.length<6){ say("ใส่อีเมลและรหัสผ่านอย่างน้อย 6 ตัวก่อน"); return; }
+    say("กำลังสมัคร…");
+    const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin+"/auth/callback"}});
+    if(error) say(error.message); else if(!data.session) say("ส่งอีเมลยืนยันแล้ว กดลิงก์ในอีเมล แล้วกลับมาเข้าสู่ระบบที่หน้านี้"); });
   $("#lg-local").addEventListener("click", ()=>{ ls.set("gm.localonly","1"); Store.initLocal(); render(); });
 }
 const CFG = window.GM_CONFIG || {};
-(async ()=>{
-  let tok=null; try{ tok=JSON.parse(sessionStorage.getItem("gm.tok")||"null"); }catch(_){}
-  if(tok && tok.e>Date.now() && CFG.googleClientId){ Drive.tok=tok.t; Drive.exp=tok.e; if(await Drive.start()) render(); return; }
-  if(ls.get("gm.localonly")==="1" || !CFG.googleClientId){ Store.initLocal(); render(); return; }
-  showLogin(ls.get("gm.google")==="1" ? "เซสชันหมดอายุ กดต่อด้วย Google อีกครั้ง" : "");
+// ข้อความ error จากลิงก์ยืนยันอีเมล (เช่น หมดอายุ / ถูกใช้ไปแล้ว)
+let authErr = (() => {
+  const hp = new URLSearchParams(location.hash.slice(1));
+  if (!hp.get("error")) return "";
+  const code = hp.get("error_code");
+  const desc = (hp.get("error_description") || "").replace(/\+/g, " ");
+  history.replaceState(null, "", "/");
+  return code === "otp_expired"
+    ? "ลิงก์ยืนยันหมดอายุหรือถูกใช้ไปแล้ว ลองเข้าสู่ระบบ หรือสมัครใหม่เพื่อรับลิงก์ใหม่"
+    : (desc || "ยืนยันอีเมลไม่สำเร็จ ลองใหม่อีกครั้ง");
 })();
+const sb = (window.supabase && CFG.supabaseUrl) ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey) : null;
+let curUid=null, authInit=false;
+if(!sb){ Store.initLocal(); render(); }
+else {
+  sb.auth.onAuthStateChange((ev, session)=>{
+    const id = session?.user?.id || null;
+    if(authInit && id===curUid && ev!=="SIGNED_OUT") return;
+    authInit=true; curUid=id;
+    setTimeout(async ()=>{
+      if(location.pathname.startsWith("/auth/callback")) history.replaceState(null,"","/");
+      if(session){ ls.set("gm.localonly",""); await Store.initSupabase(session); render(); }
+      else if(ls.get("gm.localonly")==="1"){ Store.initLocal(); render(); }
+      else { Store.ready=false; if(Store.chan) sb.removeChannel(Store.chan); Store.items.clear(); Store.mode="memory"; showLogin(authErr); authErr=""; }
+    },0);
+  });
+}
 })();
 </script>
 
