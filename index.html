@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1A1E1C">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M21 3l8 8-3 1-6 6c1.6 2.8 1 6.6-1.8 9.4-3.4 3.4-8.4 3.8-11.2 1S4.6 21 8 17.6C10.8 14.8 14.6 14.2 17.4 15.8l6-6z' fill='none' stroke='%23D2541C' stroke-width='2.4'/%3E%3C/svg%3E">
-<title>Guitar Man</title>
+<title>TM Guitar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
@@ -594,7 +594,7 @@ function render(){
   if(S.plId && !Store.get(S.plId)) S.plId=null;
   const tabs=[["songs","เพลง"],["playlists","เพลย์ลิสต์"],["gear","กีตาร์ & เอฟเฟกต์"]];
   app.innerHTML = `<header><div class="hbar wrap">
-    <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M21 3l8 8-3 1-6 6c1.6 2.8 1 6.6-1.8 9.4-3.4 3.4-8.4 3.8-11.2 1S4.6 21 8 17.6C10.8 14.8 14.6 14.2 17.4 15.8l6-6z" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round"/><circle cx="12.6" cy="21.4" r="2.2" fill="var(--accent)"/></svg>Guitar Man</div>
+    <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M21 3l8 8-3 1-6 6c1.6 2.8 1 6.6-1.8 9.4-3.4 3.4-8.4 3.8-11.2 1S4.6 21 8 17.6C10.8 14.8 14.6 14.2 17.4 15.8l6-6z" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round"/><circle cx="12.6" cy="21.4" r="2.2" fill="var(--accent)"/></svg>TM Guitar</div>
     <nav class="tabs">${tabs.map(([k,l])=>`<button data-act="tab" data-v="${k}" aria-current="${S.tab===k}">${l}</button>`).join("")}</nav>
     <div class="hstat"><span id="savestat">${statHTML()}</span>
       <button class="btn sm ghost" data-act="export">สำรองข้อมูล</button><button class="btn sm ghost" data-act="import">นำเข้า</button>${Store.mode==="sb"?`<span title="${esc(Store.email)}" style="max-width:14ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(Store.email)}</span><button class="btn sm" data-act="signout">ออกจากระบบ</button>`:`<button class="btn sm" data-act="signin">เข้าสู่ระบบเพื่อซิงก์</button>`}</div>
@@ -963,14 +963,14 @@ $("#tslfile").addEventListener("change", async e=>{
 $("#importfile").addEventListener("change", async e=>{
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
   try{ const arr=JSON.parse(await f.text()); if(!Array.isArray(arr)) throw 0; let n=0; arr.forEach(x=>{ if(x&&x.id&&x.kind){ Store.put(x,80+n*30); n++; } }); toast(`นำเข้า ${n} รายการ`); render(); }
-  catch(_){ toast("ไฟล์นี้ไม่ใช่ไฟล์สำรองของ Guitar Man"); }
+  catch(_){ toast("ไฟล์นี้ไม่ใช่ไฟล์สำรองของ TM Guitar"); }
 });
 async function saveFile(name, data){
   const blob = data instanceof Blob ? data : new Blob([data],{type:"application/octet-stream"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click();
   setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
-function exportAll(){ const d=new Date(); const name=`guitar-man-backup-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}.json`; saveFile(name, JSON.stringify([...Store.items.values()],null,1)); }
+function exportAll(){ const d=new Date(); const name=`tm-guitar-backup-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}.json`; saveFile(name, JSON.stringify([...Store.items.values()],null,1)); }
 
 /* ---------- boot ---------- */
 let rT=0;
@@ -981,7 +981,7 @@ Store.listeners.push(()=>{ cancelAnimationFrame(rT); rT=requestAnimationFrame(()
 window.addEventListener("resize", ()=>{ clearTimeout(rT); });
 function showLogin(msg){
   app.innerHTML = `<div class="login wrap"><div class="card login-card">
-    <div class="brand" style="justify-content:center;margin-bottom:6px"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M21 3l8 8-3 1-6 6c1.6 2.8 1 6.6-1.8 9.4-3.4 3.4-8.4 3.8-11.2 1S4.6 21 8 17.6C10.8 14.8 14.6 14.2 17.4 15.8l6-6z" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round"/><circle cx="12.6" cy="21.4" r="2.2" fill="var(--accent)"/></svg>Guitar Man</div>
+    <div class="brand" style="justify-content:center;margin-bottom:6px"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M21 3l8 8-3 1-6 6c1.6 2.8 1 6.6-1.8 9.4-3.4 3.4-8.4 3.8-11.2 1S4.6 21 8 17.6C10.8 14.8 14.6 14.2 17.4 15.8l6-6z" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round"/><circle cx="12.6" cy="21.4" r="2.2" fill="var(--accent)"/></svg>TM Guitar</div>
     <p class="hint" style="text-align:center;margin:0 0 14px">เข้าสู่ระบบเพื่อเก็บเพลง คอร์ด และ preset ไว้บน Supabase แล้วเปิดได้ทุกเครื่อง</p>
     <form id="loginform" style="display:grid;gap:10px">
       <label class="f">อีเมล<input type="email" id="lg-email" autocomplete="email" required style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px"></label>
