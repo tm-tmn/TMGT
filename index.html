@@ -998,7 +998,7 @@ function showLogin(msg){
   $("#lg-up").addEventListener("click", async ()=>{ const email=$("#lg-email").value.trim(), password=$("#lg-pass").value;
     if(!email||password.length<6){ say("ใส่อีเมลและรหัสผ่านอย่างน้อย 6 ตัวก่อน"); return; }
     say("กำลังสมัคร…");
-    const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin}});
+    const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin+"/auth/callback"}});
     if(error) say(error.message); else if(!data.session) say("ส่งอีเมลยืนยันแล้ว กดลิงก์ในอีเมล แล้วกลับมาเข้าสู่ระบบที่หน้านี้"); });
   $("#lg-local").addEventListener("click", ()=>{ ls.set("gm.localonly","1"); Store.initLocal(); render(); });
 }
@@ -1012,6 +1012,7 @@ else {
     if(authInit && id===curUid && ev!=="SIGNED_OUT") return;
     authInit=true; curUid=id;
     setTimeout(async ()=>{
+      if(location.pathname.startsWith("/auth/callback")) history.replaceState(null,"","/");
       if(session){ ls.set("gm.localonly",""); await Store.initSupabase(session); render(); }
       else if(ls.get("gm.localonly")==="1"){ Store.initLocal(); render(); }
       else { Store.ready=false; if(Store.chan) sb.removeChannel(Store.chan); Store.items.clear(); Store.mode="memory"; showLogin(); }

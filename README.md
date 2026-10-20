@@ -10,7 +10,7 @@
 Import repo นี้ใน Vercel → Framework Preset: **Other** → ไม่ต้องตั้ง Build Command → Deploy
 
 ## หลัง deploy ครั้งแรก
-ใน Supabase → Authentication → URL Configuration ตั้ง **Site URL** เป็นโดเมน Vercel (เช่น `https://tmgt.vercel.app`) เพื่อให้ลิงก์ยืนยันอีเมลพากลับมาที่เว็บ
+ใน Supabase → Authentication → URL Configuration เพิ่ม `https://<โดเมน>/auth/callback` ใน **Redirect URLs** (ไม่ต้องเปลี่ยน Site URL เพราะใช้โปรเจกต์ร่วมกับแอปอื่น)
 
 ## รูปแบบเนื้อเพลง
 ```
